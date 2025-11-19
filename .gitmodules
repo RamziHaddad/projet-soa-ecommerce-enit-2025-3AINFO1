@@ -1,0 +1,3 @@
+[submodule "order_service"]
+	path = order_service
+	url = https://github.com/RamziHaddad/projet-soa-ecommerce-enit-2025-3AINFO1.git
