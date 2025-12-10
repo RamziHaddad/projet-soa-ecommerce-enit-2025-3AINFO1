@@ -1,0 +1,39 @@
+// src/main/resources/mock-products.json
+[
+    {
+        "id": "1",
+        "name": "Ordinateur Portable",
+        "description": "Un ordinateur portable puissant",
+        "price": 999.99,
+        "category": "Electronique",
+        "is_indexed": false,
+        "last_update_time": "2023-01-01T00:00:00"
+    },
+    {
+        "id": "2",
+        "name": "Smartphone",
+        "description": "Dernier modèle de smartphone",
+        "price": 799.99,
+        "category": "Electronique",
+        "is_indexed": false,
+        "last_update_time": "2023-01-02T00:00:00"
+    },
+    {
+        "id": "3",
+        "name": "Livre Java",
+        "description": "Livre sur la programmation Java",
+        "price": 29.99,
+        "category": "Livres",
+        "is_indexed": false,
+        "last_update_time": "2023-01-03T00:00:00"
+    },
+    {
+        "id": "4",
+        "name": "Cafétière",
+        "description": "Machine à café automatique",
+        "price": 149.99,
+        "category": "Maison",
+        "is_indexed": false,
+        "last_update_time": "2023-01-04T00:00:00"
+    }
+]

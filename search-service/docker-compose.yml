@@ -1,0 +1,30 @@
+# docker-compose.yaml (à placer à la racine du projet)
+version: '3.8'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - es-net
+
+  search-service:
+    build: .
+    container_name: search-service
+    ports:
+      - 8081:8081
+    depends_on:
+      - elasticsearch
+    environment:
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+    networks:
+      - es-net
+
+networks:
+  es-net:
+    driver: bridge
