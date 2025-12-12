@@ -21,7 +21,10 @@ public class MockCatalogService {
     public void init() {
         ObjectMapper mapper = new ObjectMapper();
         try {
-            Product[] loadedProducts = mapper.readValue(new File("src/main/resources/mock-products.json"), Product[].class);
+            Product[] loadedProducts = mapper.readValue(
+            getClass().getClassLoader().getResourceAsStream("mock-products.json"),
+            Product[].class
+        );
             products.addAll(List.of(loadedProducts));
             System.out.println("Données mock du catalogue chargées: " + products.size() + " produits.");
         } catch (Exception e) {
