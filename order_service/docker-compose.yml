@@ -1,0 +1,185 @@
+
+services:
+  # -----------------------------
+  # Base de données PostgreSQL
+  # -----------------------------
+  postgres:
+    image: postgres:13-alpine
+    container_name: order-postgres
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - order-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -----------------------------
+  # Microservice Order Service
+  # -----------------------------
+  order-service:
+    build: .
+    container_name: order-service
+    ports:
+      - "8080:8080"
+    environment:
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/order_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      
+      # JPA Configuration
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      
+      # External Services Configuration (Mock Services)
+      SERVICES_INVENTORY_URL: http://mock-services:8081
+      SERVICES_PAYMENT_URL: http://mock-services:8082
+      SERVICES_SHIPPING_URL: http://mock-services:8083
+      SERVICES_COMMUNICATION_URL: http://mock-services:8085
+      
+      # Logging & Actuator
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-services:
+        condition: service_healthy
+    networks:
+      - order-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["full"]
+
+  # -----------------------------
+  # Mock Services
+  # -----------------------------
+  mock-services:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock
+    container_name: mock-services
+    ports:
+      - "8081:8081"  # Inventory
+      - "8082:8082"  # Payment
+      - "8083:8083"  # Shipping
+      - "8085:8085"  # Communication
+    environment:
+      SPRING_PROFILES_ACTIVE: mock
+      SERVER_PORT: 8081
+    networks:
+      - order-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: ["full"]
+
+  # -----------------------------
+  # Mock API Gateway (pour dev simple)
+  # -----------------------------
+  mock-api-gateway:
+    image: nginx:alpine
+    container_name: mock-api-gateway
+    ports:
+      - "8081:80"
+    volumes:
+      - ./mock-nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - order-network
+    profiles: ["dev"]
+
+  # -----------------------------
+  # Redis Cache (optionnel)
+  # -----------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: order-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - order-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    profiles: ["full"]
+
+  # -----------------------------
+  # Prometheus (optionnel)
+  # -----------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: order-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - order-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    profiles: ["full"]
+
+  # -----------------------------
+  # Grafana (optionnel)
+  # -----------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: order-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - order-network
+    depends_on:
+      - prometheus
+    profiles: ["full"]
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  order-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

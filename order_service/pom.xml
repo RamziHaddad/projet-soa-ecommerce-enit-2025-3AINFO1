@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.11</version>
+		<version>3.3.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.onlineshop</groupId>
@@ -137,6 +137,7 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<mainClass>com.onlineshop.order.OrderApplication</mainClass>
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>
@@ -147,5 +148,84 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>mock</id>
+			<!-- Remplacer les dépendances par des versions mock sans JPA -->
+			<dependencies>
+				<!-- Garder spring-boot-starter-web -->
+				<dependency>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
+				</dependency>
+				
+				<!-- Garder les autres dépendances -->
+				<dependency>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-validation</artifactId>
+				</dependency>
+				<dependency>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-devtools</artifactId>
+					<scope>runtime</scope>
+					<optional>true</optional>
+				</dependency>
+				
+				<dependency>
+					<groupId>org.springframework.cloud</groupId>
+					<artifactId>spring-cloud-starter-openfeign</artifactId>
+				</dependency>
+				
+				<dependency>
+					<groupId>io.github.resilience4j</groupId>
+					<artifactId>resilience4j-spring-boot3</artifactId>
+					<version>2.1.0</version>
+				</dependency>
+				<dependency>
+					<groupId>io.github.resilience4j</groupId>
+					<artifactId>resilience4j-circuitbreaker</artifactId>
+					<version>2.1.0</version>
+				</dependency>
+				<dependency>
+					<groupId>io.github.resilience4j</groupId>
+					<artifactId>resilience4j-retry</artifactId>
+					<version>2.1.0</version>
+				</dependency>
+				<dependency>
+					<groupId>io.github.resilience4j</groupId>
+					<artifactId>resilience4j-timelimiter</artifactId>
+					<version>2.1.0</version>
+				</dependency>
+				
+				<!-- Exclure PostgreSQL du profil mock -->
+				<!-- Ne pas inclure spring-boot-starter-data-jpa -->
+				<!-- Ne pas inclure postgresql -->
+				<!-- Garder Lombok -->
+				<dependency>
+					<groupId>org.projectlombok</groupId>
+					<artifactId>lombok</artifactId>
+					<optional>true</optional>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-maven-plugin</artifactId>
+						<configuration>
+							<mainClass>com.onlineshop.order.mock.SimpleMockApplication</mainClass>
+							<excludes>
+								<exclude>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</exclude>
+							</excludes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>
