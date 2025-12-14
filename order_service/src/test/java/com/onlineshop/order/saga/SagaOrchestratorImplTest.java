@@ -7,18 +7,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.onlineshop.order.communication.CommunicationStrategy;
+import com.onlineshop.order.communication.OrderProcessingCommunicationHandler;
 import com.onlineshop.order.model.Order;
 import com.onlineshop.order.model.SagaState;
 import com.onlineshop.order.repository.SagaStateRepository;
-import com.onlineshop.order.saga.CompensationHandler;
-import com.onlineshop.order.saga.SagaOrchestratorImpl;
 
 @ExtendWith(MockitoExtension.class)
 class SagaOrchestratorImplTest {
 
     @Mock
-    private CommunicationStrategy communicationStrategy;
+    private OrderProcessingCommunicationHandler communicationStrategy;
 
     @Mock
     private CompensationHandler compensationHandler;

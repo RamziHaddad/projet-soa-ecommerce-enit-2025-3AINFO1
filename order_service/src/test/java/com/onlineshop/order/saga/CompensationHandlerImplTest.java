@@ -7,16 +7,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.onlineshop.order.communication.CommunicationStrategy;
+import com.onlineshop.order.communication.OrderProcessingCommunicationHandler;
 import com.onlineshop.order.model.Order;
 import com.onlineshop.order.model.SagaState;
-import com.onlineshop.order.saga.CompensationHandlerImpl;
 
 @ExtendWith(MockitoExtension.class)
 class CompensationHandlerImplTest {
 
     @Mock
-    private CommunicationStrategy communicationStrategy;
+    private OrderProcessingCommunicationHandler communicationStrategy;
 
     @InjectMocks
     private CompensationHandlerImpl compensationHandler;
