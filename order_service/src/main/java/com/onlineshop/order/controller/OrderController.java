@@ -17,6 +17,7 @@ import com.onlineshop.order.service.OrderService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * REST controller for Order operations
@@ -24,37 +25,48 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
+@Slf4j
 public class OrderController {
     
     private final OrderService orderService;
     
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest request) {
-        // TODO: Handle order creation
-        return null;
+        log.info("Received order creation request for customer: {}", request.getCustomerId());
+        OrderResponse orderResponse = orderService.createOrder(request);
+        log.info("Order created successfully with number: {}", orderResponse.getOrderNumber());
+        return ResponseEntity.ok(orderResponse);
     }
     
     @GetMapping("/{orderId}")
     public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long orderId) {
-        // TODO: Handle get order by ID
-        return null;
+        log.info("Retrieving order with ID: {}", orderId);
+        OrderResponse orderResponse = orderService.getOrderById(orderId);
+        log.info("Order retrieved successfully: {}", orderResponse.getOrderNumber());
+        return ResponseEntity.ok(orderResponse);
     }
     
     @GetMapping("/number/{orderNumber}")
     public ResponseEntity<OrderResponse> getOrderByNumber(@PathVariable String orderNumber) {
-        // TODO: Handle get order by number
-        return null;
+        log.info("Retrieving order with number: {}", orderNumber);
+        OrderResponse orderResponse = orderService.getOrderByNumber(orderNumber);
+        log.info("Order retrieved successfully: {}", orderResponse.getOrderNumber());
+        return ResponseEntity.ok(orderResponse);
     }
     
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<List<OrderResponse>> getOrdersByCustomerId(@PathVariable Long customerId) {
-        // TODO: Handle get orders by customer
-        return null;
+        log.info("Retrieving orders for customer: {}", customerId);
+        List<OrderResponse> orders = orderService.getOrdersByCustomerId(customerId);
+        log.info("Retrieved {} orders for customer: {}", orders.size(), customerId);
+        return ResponseEntity.ok(orders);
     }
     
     @DeleteMapping("/{orderId}")
     public ResponseEntity<Void> cancelOrder(@PathVariable Long orderId) {
-        // TODO: Handle order cancellation
-        return null;
+        log.info("Cancelling order with ID: {}", orderId);
+        orderService.cancelOrder(orderId);
+        log.info("Order cancelled successfully: {}", orderId);
+        return ResponseEntity.noContent().build();
     }
 }

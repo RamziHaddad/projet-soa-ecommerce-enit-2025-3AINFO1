@@ -1,0 +1,70 @@
+services:
+  # -----------------------------
+  # Base de données PostgreSQL
+  # -----------------------------
+  postgres:
+    image: postgres:13-alpine
+    container_name: order-postgres-mock
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_mock:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - order-network-mock
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # -----------------------------
+  # Mock Services avec configuration Docker
+  # -----------------------------
+  mock-services:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock
+    container_name: mock-services-mock
+    ports:
+      - "8081:8081"  # Inventory
+      - "8082:8082"  # Payment
+      - "8083:8083"  # Shipping
+      - "8085:8085"  # Communication
+    environment:
+      # Configuration pour profil mock avec Docker
+      SPRING_PROFILES_ACTIVE: mock
+      SERVER_PORT: 8081
+      
+      # Configuration base de données pour Docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/order_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      
+      # Désactiver Spring Cloud pour éviter les erreurs de compatibilité
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - order-network-mock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data_mock:
+    driver: local
+
+networks:
+  order-network-mock:
+    driver: bridge
