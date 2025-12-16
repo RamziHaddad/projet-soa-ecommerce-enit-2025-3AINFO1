@@ -6,14 +6,24 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # Optionnel mais recommandé
     ports:
       - 9200:9200
+      - 9300:9300
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9200"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 15
+      start_period: 30s
+    networks:
+      - es-net
+
+  mock-catalogue:
+    build: ../mock-catalogue
+    container_name: mock-catalogue
+    ports:
+      - 8080:8080
     networks:
       - es-net
 
@@ -24,7 +34,9 @@ services:
       - 8081:8081
     depends_on:
       elasticsearch:
-        condition: service_healthy
+        condition: service_healthy   # <--- LIGNE CRUCIALE
+      mock-catalogue:
+        condition: service_started   # Optionnel, mais propre
     environment:
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
     networks:
