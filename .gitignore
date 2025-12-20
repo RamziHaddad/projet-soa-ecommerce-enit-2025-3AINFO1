@@ -32,3 +32,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Docker ###
+docker-compose.override.yml
+.env
+.env.local
+
+### Database ###
+*.db
+*.sqlite

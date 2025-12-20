@@ -1,0 +1,14 @@
+target/
+.mvn/
+*.log
+.git/
+.gitignore
+*.md
+*.iml
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+Dockerfile
+docker-compose*.yml
