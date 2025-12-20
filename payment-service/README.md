@@ -225,7 +225,7 @@ mvn test -Dtest=PaymentResourceTest
 - **Idempotence** : Sécurité contre les doublons
 - **Circuit Breaker** : Résilience aux pannes
 
-## 🚀 Évolution Future : Intégration API Externe
+## 🚀 Prochaines étpes : Intégration API Externe
 
 ### Objectif
 Remplacer la simulation actuelle par une véritable API bancaire pour traiter des paiements réels.
