@@ -26,6 +26,16 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       group-id: inventory-service-group
+      properties:
+        spring.json.trusted.packages: "*"
+
+saga:
+  topics:
+    inventoryReserveCommand: ${SAGA_TOPIC_INVENTORY_RESERVE:inventory.reserve.command}
+    inventoryCancelCommand: ${SAGA_TOPIC_INVENTORY_CANCEL:inventory.cancel.command}
+    inventoryConfirmCommand: ${SAGA_TOPIC_INVENTORY_CONFIRM:inventory.confirm.command}
+    inventoryEvents: ${SAGA_TOPIC_INVENTORY_EVENTS:inventory.events}
+    commNotifications: ${SAGA_TOPIC_COMM_NOTIFICATIONS:comm.notifications}
 
 server:
   port: ${SERVER_PORT:8082}
@@ -43,3 +53,7 @@ logging:
   level:
     root: INFO
     com.ecommerce.inventory: DEBUG
+
+orders:
+  service:
+    url: ${ORDERS_SERVICE_URL:http://localhost:8081}
