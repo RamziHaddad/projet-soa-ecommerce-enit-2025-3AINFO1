@@ -31,4 +31,10 @@ public interface SagaOrchestrator {
      * @return true if retry is possible
      */
     boolean canRetry(Order order);
+
+    /**
+     * Retry a failed SAGA execution
+     * @param order The order to retry
+     */
+    void retrySaga(Order order);
 }
