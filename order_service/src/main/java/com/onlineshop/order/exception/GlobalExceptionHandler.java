@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    
+
     @ExceptionHandler(OrderNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleOrderNotFoundException(OrderNotFoundException ex) {
         log.warn("Order not found: {}", ex.getMessage());
@@ -31,7 +32,7 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
-    
+
     @ExceptionHandler(SagaException.class)
     public ResponseEntity<ErrorResponse> handleSagaException(SagaException ex) {
         log.error("SAGA error: {}", ex.getMessage(), ex);
@@ -43,7 +44,7 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
-    
+
     @ExceptionHandler(CompensationException.class)
     public ResponseEntity<ErrorResponse> handleCompensationException(CompensationException ex) {
         log.error("Compensation error: {}", ex.getMessage(), ex);
@@ -55,7 +56,7 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
-    
+
     @ExceptionHandler(ServiceCommunicationException.class)
     public ResponseEntity<ErrorResponse> handleServiceCommunicationException(ServiceCommunicationException ex) {
         log.error("Service communication error: {}", ex.getMessage(), ex);
@@ -67,19 +68,22 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
     }
-    
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        log.warn("Validation error: {}", ex.getMessage());
         Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-        return ResponseEntity.badRequest().body(errors);
+        BindingResult bindingResult = ex.getBindingResult();
+        if (bindingResult != null) {
+            bindingResult.getAllErrors().forEach(error -> {
+                String fieldName = error instanceof FieldError ? ((FieldError) error).getField()
+                        : error.getObjectName();
+                String errorMessage = error.getDefaultMessage();
+                errors.put(fieldName, errorMessage);
+            });
+        }
+        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
-    
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException ex) {
         log.warn("Illegal state: {}", ex.getMessage());
@@ -91,7 +95,7 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
-    
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
         log.error("Runtime error: {}", ex.getMessage(), ex);
@@ -103,7 +107,7 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
-    
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);
