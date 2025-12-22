@@ -1,14 +1,26 @@
 package com.onlineshop.order.model;
 
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.LastModifiedDate;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "saga_states")
@@ -16,6 +28,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(exclude = { "order" })
 public class SagaState {
     
     @Id
@@ -28,11 +41,13 @@ public class SagaState {
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SagaStatus status;
+    @Builder.Default
+    private SagaStatus status = SagaStatus.STARTED;
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SagaStep currentStep;
+    @Builder.Default
+    private SagaStep currentStep = SagaStep.ORDER_CREATED;
     
     @Builder.Default
     @Column(name = "inventory_reserved")
