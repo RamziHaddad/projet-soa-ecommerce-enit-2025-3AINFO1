@@ -1,5 +1,6 @@
 package com.example.payment.service;
 
+import com.example.payment.dto.PaymentDetails;
 import com.example.payment.dto.PaymentRequest;
 import com.example.payment.dto.PaymentResponse;
 import com.example.payment.entity.Outbox;
@@ -108,6 +109,109 @@ public class PaymentService {
     private boolean simulatePayment(PaymentRequest request) {
         // Simulate 80% success rate
         return Math.random() > 0.2;
+    }
+
+    public PaymentResponse getPaymentStatus(UUID paymentId) {
+        LOG.info("Retrieving payment status for paymentId: {}", paymentId);
+
+        Paiement paiement = Paiement.find("paymentId", paymentId).firstResult();
+
+        if (paiement != null) {
+            String message = switch (paiement.status) {
+                case "SUCCESS" -> "Payment completed successfully";
+                case "FAILED" -> "Payment failed";
+                case "PENDING" -> "Payment is being processed";
+                default -> "Payment status: " + paiement.status;
+            };
+
+            return new PaymentResponse(paiement.paymentId.toString(), paiement.status, message);
+        }
+
+        LOG.warn("No payment found for paymentId: {}", paymentId);
+        return null;
+    }
+
+    public java.util.List<PaymentResponse> getPaymentsByUser(UUID userId) {
+        LOG.info("Retrieving payments for userId: {}", userId);
+
+        java.util.List<Paiement> paiements = Paiement.find("userId", userId).list();
+
+        return paiements.stream()
+            .map(paiement -> {
+                String message = switch (paiement.status) {
+                    case "SUCCESS" -> "Payment completed successfully";
+                    case "FAILED" -> "Payment failed";
+                    case "PENDING" -> "Payment is being processed";
+                    default -> "Payment status: " + paiement.status;
+                };
+                return new PaymentResponse(paiement.paymentId.toString(), paiement.status, message);
+            })
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    public PaymentDetails getPaymentDetails(UUID paymentId) {
+        LOG.info("Retrieving payment details for paymentId: {}", paymentId);
+
+        Paiement paiement = Paiement.find("paymentId", paymentId).firstResult();
+
+        if (paiement != null) {
+            return new PaymentDetails(
+                paiement.paymentId,
+                paiement.userId,
+                paiement.cardNumber,
+                paiement.amount,
+                paiement.status,
+                paiement.attempts,
+                paiement.previousStep,
+                paiement.nextStep,
+                paiement.createdAt
+            );
+        }
+
+        LOG.warn("No payment found for paymentId: {}", paymentId);
+        return null;
+    }
+
+    @Transactional
+    public PaymentResponse cancelPayment(UUID paymentId) {
+        LOG.info("Attempting to cancel payment for paymentId: {}", paymentId);
+
+        Paiement paiement = Paiement.find("paymentId", paymentId).firstResult();
+
+        if (paiement == null) {
+            LOG.warn("Payment not found for paymentId: {}", paymentId);
+            return null;
+        }
+
+        // Only allow cancellation for pending payments
+        if ("PENDING".equals(paiement.status)) {
+            paiement.status = "CANCELLED";
+            paiement.previousStep = paiement.nextStep;
+            paiement.nextStep = "CANCELLED";
+            paiement.persist();
+
+            publishEvent(paiement, "PAYMENT_CANCELLED");
+            LOG.info("Payment cancelled for paymentId: {}", paymentId);
+            return new PaymentResponse(paymentId.toString(), "CANCELLED", "Payment cancelled successfully");
+        } else {
+            LOG.warn("Cannot cancel payment with status: {} for paymentId: {}", paiement.status, paymentId);
+            return new PaymentResponse(paymentId.toString(), paiement.status,
+                "Cannot cancel payment with status: " + paiement.status);
+        }
+    }
+
+    public String processWebhook(String payload) {
+        LOG.info("Processing webhook payload: {}", payload);
+
+        try {
+            // Parse webhook payload (simplified - in real implementation, use JSON parser)
+            // For now, just acknowledge receipt
+            LOG.info("Webhook processed successfully: {}", payload);
+            return "Webhook processed successfully";
+        } catch (Exception e) {
+            LOG.error("Error processing webhook payload", e);
+            throw new RuntimeException("Failed to process webhook", e);
+        }
     }
 
     private void publishEvent(Paiement paiement, String eventType) {
