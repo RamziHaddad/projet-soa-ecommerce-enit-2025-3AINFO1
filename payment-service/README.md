@@ -204,6 +204,18 @@ mvn test -Dtest=PaymentResourceTest
 - **DTOs** : `PaymentRequest`, `PaymentResponse` (objets de transfert)
 - **Services** : `PaymentService` (logique métier), `SagaService` (coordination)
 - **Resource** : `PaymentResource` (couche REST)
+- **Bank simulator** : `BankSimulatorResource` exposes a simulated external bank API at `POST /bank/api/pay` (used by `BankClientImpl`).
+
+## Simulating the external Bank API 🔧
+
+- Endpoint: `POST /bank/api/pay` with JSON payload `{ "paymentId":"...", "userId":"...", "cardNumber":"...", "amount":<number> }`.
+- Behavior:
+  - If `cardNumber` ends with `0000` or `amount` &gt; 10000 => returns `{ "status": "FAILED" }`.
+  - Otherwise returns `{ "status": "SUCCESS" }` with ~80% chance.
+  - The simulator also asynchronously POSTs a webhook to `/paiement/webhook` to mimic callback behavior.
+
+- Configuration: `bank.api.url` property points to the bank endpoint used by `BankClientImpl` (defaults to `http://localhost:8081/bank/api/pay`).
+
 
 ### Flux de Traitement
 

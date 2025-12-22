@@ -106,9 +106,20 @@ public class PaymentService {
         return true;
     }
 
+    @jakarta.inject.Inject
+    com.example.payment.client.BankClient bankClient;
+
     private boolean simulatePayment(PaymentRequest request) {
-        // Simulate 80% success rate
-        return Math.random() > 0.2;
+        // Call external bank API via BankClient. If the call fails, fall back to local stochastic simulation.
+        try {
+            boolean bankSuccess = bankClient.processPayment(request);
+            LOG.info("Bank processing result for paymentId {}: {}", request.paymentId, bankSuccess);
+            return bankSuccess;
+        } catch (Exception e) {
+            LOG.warn("Bank client failed, falling back to local simulation", e);
+            // Fallback: 80% success
+            return Math.random() > 0.2;
+        }
     }
 
     public PaymentResponse getPaymentStatus(UUID paymentId) {
