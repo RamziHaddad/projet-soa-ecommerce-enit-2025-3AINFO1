@@ -1,0 +1,22 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/shipping/arrange"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "transformers": [
+      "response-template"
+    ],
+    "jsonBody": {
+      "success": true,
+      "trackingNumber": "SHIP-{{randomValue length=10 type='ALPHANUMERIC'}}",
+      "message": "Shipping successfully arranged",
+      "retryable": false,
+      "timestamp": "2025-12-22T22:01:42.746546424"
+    }
+  }
+}

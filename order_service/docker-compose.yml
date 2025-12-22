@@ -40,11 +40,11 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       
-      # External Services Configuration (Mock Services)
-      SERVICES_INVENTORY_URL: http://mock-services:8081
-      SERVICES_PAYMENT_URL: http://mock-services:8082
-      SERVICES_SHIPPING_URL: http://mock-services:8083
-      SERVICES_COMMUNICATION_URL: http://mock-services:8085
+      # External Services Configuration (WireMock Services)
+      SERVICES_INVENTORY_URL: http://wiremock-inventory:8080
+      SERVICES_PAYMENT_URL: http://wiremock-payment:8080
+      SERVICES_SHIPPING_URL: http://wiremock-shipping:8080
+      SERVICES_COMMUNICATION_URL: http://wiremock-inventory:8080
       
       # Logging & Actuator
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
@@ -52,7 +52,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mock-services:
+      wiremock-inventory:
+        condition: service_healthy
+      wiremock-payment:
+        condition: service_healthy
+      wiremock-shipping:
         condition: service_healthy
     networks:
       - order-network
@@ -65,30 +69,64 @@ services:
     profiles: ["full"]
 
   # -----------------------------
-  # Mock Services
+  # WireMock Inventory Service
   # -----------------------------
-  mock-services:
-    build:
-      context: .
-      dockerfile: Dockerfile.mock
-    container_name: mock-services
+  wiremock-inventory:
+    image: wiremock/wiremock:latest
+    container_name: wiremock-inventory
     ports:
-      - "8081:8081"  # Inventory
-      - "8082:8082"  # Payment
-      - "8083:8083"  # Shipping
-      - "8085:8085"  # Communication
-    environment:
-      SPRING_PROFILES_ACTIVE: mock
-      SERVER_PORT: 8081
+      - "8081:8080"
+    volumes:
+      - ./wiremock/inventory/mappings:/home/wiremock/mappings
+    command: --port 8080 --verbose
     networks:
       - order-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    profiles: ["full"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["full", "mock"]
+
+  # -----------------------------
+  # WireMock Payment Service
+  # -----------------------------
+  wiremock-payment:
+    image: wiremock/wiremock:latest
+    container_name: wiremock-payment
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./wiremock/payment/mappings:/home/wiremock/mappings
+    command: --port 8080 --verbose
+    networks:
+      - order-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["full", "mock"]
+
+  # -----------------------------
+  # WireMock Shipping Service
+  # -----------------------------
+  wiremock-shipping:
+    image: wiremock/wiremock:latest
+    container_name: wiremock-shipping
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./wiremock/shipping/mappings:/home/wiremock/mappings
+    command: --port 8080 --verbose
+    networks:
+      - order-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["full", "mock"]
 
   # -----------------------------
   # Mock API Gateway (pour dev simple)

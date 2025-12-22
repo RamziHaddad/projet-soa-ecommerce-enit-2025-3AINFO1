@@ -1,0 +1,22 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/inventory/reserve"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "transformers": [
+      "response-template"
+    ],
+    "jsonBody": {
+      "success": true,
+      "transactionId": "inv-trans-{{randomValue length=10 type='ALPHANUMERIC'}}",
+      "message": "Inventory successfully reserved",
+      "retryable": false,
+      "timestamp": "2025-12-22T22:01:42.746546424"
+    }
+  }
+}

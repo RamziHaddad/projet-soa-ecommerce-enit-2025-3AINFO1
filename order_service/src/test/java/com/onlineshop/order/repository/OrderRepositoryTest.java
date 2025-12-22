@@ -41,7 +41,6 @@ class OrderRepositoryTest {
         // Initialize test data
         // Create OrderItem for testOrder1
         OrderItem item1 = OrderItem.builder()
-                .productName("Product 1")
                 .productId(1L)
                 .quantity(2)
                 .unitPrice(new BigDecimal("29.99"))
@@ -60,7 +59,6 @@ class OrderRepositoryTest {
 
         // Create OrderItem for testOrder2
         OrderItem item2 = OrderItem.builder()
-                .productName("Product 2")
                 .productId(2L)
                 .quantity(1)
                 .unitPrice(new BigDecimal("49.99"))
@@ -79,7 +77,6 @@ class OrderRepositoryTest {
 
         // Create OrderItem for testOrder3
         OrderItem item3 = OrderItem.builder()
-                .productName("Product 3")
                 .productId(3L)
                 .quantity(3)
                 .unitPrice(new BigDecimal("19.99"))
@@ -116,7 +113,6 @@ class OrderRepositoryTest {
     void testSaveOrderWithMultipleItems() {
         // Test saving an order with multiple items
         OrderItem item1 = OrderItem.builder()
-                .productName("Product 1")
                 .productId(1L)
                 .quantity(2)
                 .unitPrice(new BigDecimal("25.00"))
@@ -124,7 +120,6 @@ class OrderRepositoryTest {
                 .build();
 
         OrderItem item2 = OrderItem.builder()
-                .productName("Product 2")
                 .productId(2L)
                 .quantity(1)
                 .unitPrice(new BigDecimal("30.00"))
