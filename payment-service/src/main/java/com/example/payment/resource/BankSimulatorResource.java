@@ -14,11 +14,16 @@ import java.net.http.HttpResponse;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 @Path("/bank/api")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class BankSimulatorResource {
     private static final Logger LOG = LoggerFactory.getLogger(BankSimulatorResource.class);
+
+    @ConfigProperty(name = "payment.webhook.url", defaultValue = "http://localhost:8082/paiement/webhook")
+    String paymentWebhookUrl;
 
     /**
      * Simulates an external bank payment API.
@@ -53,7 +58,7 @@ public class BankSimulatorResource {
                         payload.getOrDefault("paymentId", ""), status);
 
                 HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create("http://localhost:8081/paiement/webhook"))
+                        .uri(URI.create(paymentWebhookUrl))
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(webhookPayload))
                         .build();

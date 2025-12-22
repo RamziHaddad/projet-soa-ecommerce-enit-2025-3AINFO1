@@ -38,14 +38,14 @@ public class PaymentService {
     @CircuitBreaker
     @Retry
     @Timeout
-    public CompletableFuture<PaymentResponse> processPayment(PaymentRequest request) {
+    public PaymentResponse processPayment(PaymentRequest request) {
         LOG.info("Processing payment for paymentId: {}", request.paymentId);
 
         // Idempotence check
         Paiement existing = Paiement.find("paymentId", request.getPaymentIdAsUUID()).firstResult();
         if (existing != null) {
             LOG.warn("Payment already exists for paymentId: {}", request.paymentId);
-            return CompletableFuture.completedFuture(new PaymentResponse(request.paymentId, existing.status, "Payment already processed"));
+            return new PaymentResponse(request.paymentId, existing.status, "Payment already processed");
         }
 
         // Create payment entity
@@ -61,7 +61,7 @@ public class PaymentService {
             paiement.nextStep = "FAILED";
             paiement.persist();
             publishEvent(paiement, "PAYMENT_FAILED");
-            return CompletableFuture.completedFuture(new PaymentResponse(request.paymentId, "FAILED", "Validation failed"));
+            return new PaymentResponse(request.paymentId, "FAILED", "Validation failed");
         }
 
         paiement.previousStep = "VALIDATE";
@@ -79,7 +79,7 @@ public class PaymentService {
             sagaService.startPaymentSaga(paiement);
             publishEvent(paiement, "PAYMENT_SUCCESS");
             LOG.info("Payment successful for paymentId: {}", request.paymentId);
-            return CompletableFuture.completedFuture(new PaymentResponse(request.paymentId, "SUCCESS", "Payment processed successfully"));
+            return new PaymentResponse(request.paymentId, "SUCCESS", "Payment processed successfully");
         } else {
             paiement.status = "FAILED";
             paiement.attempts++;
@@ -88,7 +88,7 @@ public class PaymentService {
             paiement.persist();
             publishEvent(paiement, "PAYMENT_FAILED");
             LOG.warn("Payment failed for paymentId: {}", request.paymentId);
-            return CompletableFuture.completedFuture(new PaymentResponse(request.paymentId, "FAILED", "Payment processing failed"));
+            return new PaymentResponse(request.paymentId, "FAILED", "Payment processing failed");
         }
     }
 

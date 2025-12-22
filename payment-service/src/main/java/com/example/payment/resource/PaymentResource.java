@@ -30,16 +30,15 @@ public class PaymentResource {
     public CompletionStage<Response> processPayment(PaymentRequest request) {
         LOG.info("Received payment request for paymentId: {}", request.paymentId);
 
-        return paymentService.processPayment(request)
-                .thenApply(response -> {
-                    LOG.info("Payment processed for paymentId: {} with status: {}", request.paymentId, response.status);
-                    return Response.ok(response).build();
-                })
-                .exceptionally(throwable -> {
-                    LOG.error("Error processing payment for paymentId: {}", request.paymentId, throwable);
-                    PaymentResponse errorResponse = new PaymentResponse(request.paymentId, "ERROR", "Internal server error");
-                    return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(errorResponse).build();
-                });
+        try {
+            PaymentResponse response = paymentService.processPayment(request);
+            LOG.info("Payment processed for paymentId: {} with status: {}", request.paymentId, response.status);
+            return CompletableFuture.completedFuture(Response.ok(response).build());
+        } catch (Exception e) {
+            LOG.error("Error processing payment for paymentId: {}", request.paymentId, e);
+            PaymentResponse errorResponse = new PaymentResponse(request.paymentId, "ERROR", "Internal server error");
+            return CompletableFuture.completedFuture(Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(errorResponse).build());
+        }
     }
 
     @GET
