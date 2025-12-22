@@ -55,13 +55,9 @@ public class SagaStateService {
             sagaState.setCurrentStep(nextStep);
             sagaState.setStatus(SagaStatus.IN_PROGRESS);
 
-            if (order.getStatus() == OrderStatus.PENDING) {
-                order.setStatus(OrderStatus.PROCESSING);
-                order.setUpdatedAt(LocalDateTime.now());
-                orderRepository.save(order);
-            }
-
-            sagaStateRepository.save(sagaState);
+            order.setStatus(OrderStatus.INVENTORY_RESERVED);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
             log.debug("Successfully updated inventory state and proceeded to step: {} for order: {}",
                     nextStep, order.getOrderNumber());
@@ -96,7 +92,9 @@ public class SagaStateService {
             sagaState.setCurrentStep(nextStep);
             sagaState.setStatus(SagaStatus.IN_PROGRESS);
 
-            sagaStateRepository.save(sagaState);
+            order.setStatus(OrderStatus.PAYMENT_PROCESSED);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
             log.debug("Successfully updated payment state and proceeded to step: {} for order: {}",
                     nextStep, order.getOrderNumber());
@@ -131,7 +129,9 @@ public class SagaStateService {
             sagaState.setCurrentStep(nextStep);
             sagaState.setStatus(SagaStatus.IN_PROGRESS);
 
-            sagaStateRepository.save(sagaState);
+            order.setStatus(OrderStatus.SHIPPING_ARRANGED);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
             log.debug("Successfully updated shipping state and proceeded to step: {} for order: {}",
                     nextStep, order.getOrderNumber());
@@ -158,7 +158,9 @@ public class SagaStateService {
 
             SagaState sagaState = getSagaState(order);
             sagaState.setRetryable(retryable);
-            sagaStateRepository.save(sagaState);
+
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
             log.debug("Successfully updated retryable state for order: {}", order.getOrderNumber());
 
@@ -187,7 +189,8 @@ public class SagaStateService {
 
             SagaState sagaState = getSagaState(order);
             sagaState.setStatus(SagaStatus.COMPLETED);
-            sagaStateRepository.save(sagaState);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
             log.info("Successfully completed order and saga for: {}", order.getOrderNumber());
 
@@ -218,7 +221,8 @@ public class SagaStateService {
             SagaState sagaState = getSagaState(order);
             sagaState.setStatus(SagaStatus.FAILED);
             sagaState.setErrorMessage(exception.getMessage());
-            sagaStateRepository.save(sagaState);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
             log.info("Successfully marked order and saga as failed for: {}", order.getOrderNumber());
 
@@ -251,7 +255,8 @@ public class SagaStateService {
             SagaState sagaState = getSagaState(order);
             sagaState.setInventoryReserved(true);
             sagaState.setInventoryTransactionId(transactionId);
-            sagaStateRepository.save(sagaState);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
         } catch (Exception e) {
             log.error("Failed to update inventory state for order: {}", order.getOrderNumber(), e);
@@ -276,7 +281,8 @@ public class SagaStateService {
             SagaState sagaState = getSagaState(order);
             sagaState.setPaymentProcessed(true);
             sagaState.setPaymentTransactionId(transactionId);
-            sagaStateRepository.save(sagaState);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
         } catch (Exception e) {
             log.error("Failed to update payment state for order: {}", order.getOrderNumber(), e);
@@ -301,7 +307,8 @@ public class SagaStateService {
             SagaState sagaState = getSagaState(order);
             sagaState.setShippingArranged(true);
             sagaState.setShippingTransactionId(trackingNumber);
-            sagaStateRepository.save(sagaState);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
         } catch (Exception e) {
             log.error("Failed to update shipping state for order: {}", order.getOrderNumber(), e);
@@ -326,7 +333,8 @@ public class SagaStateService {
             SagaState sagaState = getSagaState(order);
             sagaState.setCurrentStep(nextStep);
             sagaState.setStatus(SagaStatus.IN_PROGRESS);
-            sagaStateRepository.save(sagaState);
+            order.setSagaState(sagaState);
+            orderRepository.save(order);
 
         } catch (Exception e) {
             log.error("Failed to update saga step for order: {}", order.getOrderNumber(), e);
