@@ -1,4 +1,4 @@
-package com.onlineshop.order.saga;
+package com.onlineshop.order.saga.compensation;
 
 import com.onlineshop.order.model.Order;
 

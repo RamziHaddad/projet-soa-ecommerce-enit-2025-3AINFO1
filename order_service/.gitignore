@@ -35,8 +35,9 @@ build/
 
 # Fichiers batch Windows
 start*.bat
+*.bak
+*.sh
 
 # Fichiers Markdown (à l'exception des fichiers importants)
 *.md
 !README.md
-!TASK_PROGRESS.md

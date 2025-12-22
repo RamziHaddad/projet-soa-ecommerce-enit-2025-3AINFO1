@@ -41,7 +41,6 @@ class OrderServiceImplTest {
 
     private OrderRequest orderRequest;
     private Order testOrder;
-    private OrderResponse expectedResponse;
 
     @BeforeEach
     void setUp() {
@@ -74,24 +73,6 @@ class OrderServiceImplTest {
                 .totalAmount(new BigDecimal("59.98"))
                 .shippingAddress("123 Main St, City, State 12345")
                 .items(Arrays.asList(orderItem))
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-        
-        // Create expected response
-        expectedResponse = OrderResponse.builder()
-                .id(1L)
-                .orderNumber("ORD-20250114120000-123")
-                .customerId(1L)
-                .status(OrderStatus.PENDING)
-                .totalAmount(new BigDecimal("59.98"))
-                .shippingAddress("123 Main St, City, State 12345")
-                .items(Arrays.asList(com.onlineshop.order.dto.response.OrderItemResponse.builder()
-                        .id(1L)
-                        .productId(1L)
-                        .quantity(2)
-                        .unitPrice(new BigDecimal("29.99"))
-                        .build()))
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
