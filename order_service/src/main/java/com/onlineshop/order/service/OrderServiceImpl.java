@@ -44,23 +44,26 @@ public class OrderServiceImpl implements OrderService {
         Order order = Order.builder()
                 .orderNumber(orderNumber)
                 .customerId(request.getCustomerId())
-                .status(OrderStatus.PENDING)
+                .status(OrderStatus.PROCESSING)
                 .shippingAddress(request.getShippingAddress())
                 .build();
         
         
         BigDecimal totalAmount = BigDecimal.ZERO;
         for (var itemRequest : request.getItems()) {
+            BigDecimal itemSubtotal = itemRequest.getUnitPrice()
+                .multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
+
             OrderItem item = OrderItem.builder()
-                    .order(order)
-                    .productId(itemRequest.getProductId())
-                    .quantity(itemRequest.getQuantity())
-                    .unitPrice(itemRequest.getUnitPrice())
-                    .build();
+                .order(order)
+                .productId(itemRequest.getProductId())
+                .quantity(itemRequest.getQuantity())
+                .unitPrice(itemRequest.getUnitPrice())
+                .subtotal(itemSubtotal)
+                .build();
+
             order.getItems().add(item);
-            totalAmount = totalAmount.add(
-                itemRequest.getUnitPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity()))
-            );
+            totalAmount = totalAmount.add(itemSubtotal);
         }
         order.setTotalAmount(totalAmount);
         
@@ -139,24 +142,25 @@ public class OrderServiceImpl implements OrderService {
         return "ORD-" + timestamp + "-" + random;
     }
     
-    private OrderResponse mapToResponse(Order order) {
+        private OrderResponse mapToResponse(Order order) {
         return OrderResponse.builder()
-                .id(order.getId())
-                .orderNumber(order.getOrderNumber())
-                .customerId(order.getCustomerId())
-                .status(order.getStatus())
-                .totalAmount(order.getTotalAmount())
-                .shippingAddress(order.getShippingAddress())
-                .createdAt(order.getCreatedAt())
-                .updatedAt(order.getUpdatedAt())
-                .items(order.getItems().stream()
-                        .map(item -> com.onlineshop.order.dto.response.OrderItemResponse.builder()
-                                .id(item.getId())
-                                .productId(item.getProductId())
-                                .quantity(item.getQuantity())
-                                .unitPrice(item.getUnitPrice())
-                                .build())
-                        .collect(Collectors.toList()))
-                .build();
-    }
+            .id(order.getId())
+            .orderNumber(order.getOrderNumber())
+            .customerId(order.getCustomerId())
+            .status(order.getStatus())
+            .totalAmount(order.getTotalAmount())
+            .shippingAddress(order.getShippingAddress())
+            .createdAt(order.getCreatedAt())
+            .updatedAt(order.getUpdatedAt())
+            .items(order.getItems().stream()
+                .map(item -> com.onlineshop.order.dto.response.OrderItemResponse.builder()
+                    .id(item.getId())
+                    .productId(item.getProductId())
+                    .quantity(item.getQuantity())
+                    .unitPrice(item.getUnitPrice())
+                    .subtotal(item.getSubtotal())
+                    .build())
+                .collect(Collectors.toList()))
+            .build();
+        }
 }
