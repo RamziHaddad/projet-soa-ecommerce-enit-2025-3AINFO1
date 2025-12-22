@@ -1,5 +1,13 @@
 package com.onlineshop.order.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.onlineshop.order.dto.request.OrderRequest;
 import com.onlineshop.order.dto.response.OrderResponse;
 import com.onlineshop.order.exception.OrderNotFoundException;
@@ -8,15 +16,10 @@ import com.onlineshop.order.model.OrderItem;
 import com.onlineshop.order.model.OrderStatus;
 import com.onlineshop.order.repository.OrderRepository;
 import com.onlineshop.order.saga.SagaOrchestrator;
+
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Implementation of Order service
@@ -34,10 +37,10 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse createOrder(OrderRequest request) {
         log.info("Creating order for customer: {}", request.getCustomerId());
         
-        // Generate unique order number
+        
         String orderNumber = generateOrderNumber();
         
-        // Create order entity
+        
         Order order = Order.builder()
                 .orderNumber(orderNumber)
                 .customerId(request.getCustomerId())
@@ -45,7 +48,7 @@ public class OrderServiceImpl implements OrderService {
                 .shippingAddress(request.getShippingAddress())
                 .build();
         
-        // Calculate total amount and add items
+        
         BigDecimal totalAmount = BigDecimal.ZERO;
         for (var itemRequest : request.getItems()) {
             OrderItem item = OrderItem.builder()
@@ -61,16 +64,16 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setTotalAmount(totalAmount);
         
-        // Save order
+        
         Order savedOrder = orderRepository.save(order);
         
-        // Start SAGA workflow
+        
         try {
             sagaOrchestrator.startSaga(savedOrder);
             log.info("SAGA workflow started for order: {}", orderNumber);
         } catch (Exception e) {
             log.error("Failed to start SAGA for order: {}", orderNumber, e);
-            // Update order status to failed
+            
             savedOrder.setStatus(OrderStatus.FAILED);
             orderRepository.save(savedOrder);
             throw new RuntimeException("Failed to start order processing", e);
@@ -81,7 +84,7 @@ public class OrderServiceImpl implements OrderService {
     
     @Override
     @Transactional(readOnly = true)
-    public OrderResponse getOrderById(Long orderId) {
+    public OrderResponse getOrderById(@NonNull Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
         return mapToResponse(order);
@@ -89,7 +92,7 @@ public class OrderServiceImpl implements OrderService {
     
     @Override
     @Transactional(readOnly = true)
-    public OrderResponse getOrderByNumber(String orderNumber) {
+    public OrderResponse getOrderByNumber(@NonNull String orderNumber) {
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with number: " + orderNumber));
         return mapToResponse(order);
@@ -106,28 +109,24 @@ public class OrderServiceImpl implements OrderService {
     
     @Override
     @Transactional
-    public void cancelOrder(Long orderId) {
+    public void cancelOrder(@NonNull Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
         
-        // Check if order can be cancelled
         if (order.getStatus() == OrderStatus.COMPLETED || order.getStatus() == OrderStatus.CANCELLED) {
             throw new IllegalStateException("Cannot cancel order with status: " + order.getStatus());
         }
-        
-        // Update status to cancelled
+
         order.setStatus(OrderStatus.CANCELLED);
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
         
-        // Trigger compensation if needed
         if (order.getStatus() != OrderStatus.PENDING) {
             try {
                 sagaOrchestrator.compensate(order);
                 log.info("Compensation triggered for order: {}", order.getOrderNumber());
             } catch (Exception e) {
                 log.error("Failed to compensate order: {}", order.getOrderNumber(), e);
-                // Don't throw exception here as order is already cancelled
             }
         }
         
