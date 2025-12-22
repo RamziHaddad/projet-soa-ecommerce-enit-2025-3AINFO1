@@ -24,8 +24,8 @@ import java.util.List;
 @Slf4j
 public class InventorySagaListener {
 
-    private final InventoryService inventoryService;
-    private final InventorySagaProducer producer;
+        private final InventoryService inventoryService;
+        private final InventorySagaProducer producer;
         private final OrdersClient ordersClient;
 
     @Value("${saga.topics.inventoryReserveCommand:inventory.reserve.command}")
@@ -65,30 +65,35 @@ public class InventorySagaListener {
             InventoryReservationEvent event = InventoryReservationEvent.builder()
                     .success(true)
                     .orderId(response.getOrderId())
-                    .reservationId(response.getReservationId())
-                    .productId(items.get(0).getProductId())
-                    .quantity(items.get(0).getQuantity())
-                    .status(ReservationStatus.RESERVED)
                     .message("Inventory reserved")
+                    .items(response.getItems().stream()
+                            .map(ir -> InventoryReservationEvent.Item.builder()
+                                    .reservationId(ir.getReservationId())
+                                    .productId(ir.getProductId())
+                                    .quantity(ir.getQuantity())
+                                    .status(ReservationStatus.RESERVED)
+                                    .build())
+                            .toList())
                     .build();
             producer.publishInventoryEvent(event);
+            // Optional one-shot notification summarizing reservation
             producer.publishNotification(NotificationEvent.builder()
                     .type(NotificationEvent.Type.RESERVED)
                     .orderId(event.getOrderId())
-                    .productId(event.getProductId())
-                    .quantity(event.getQuantity())
-                    .message("Reservation created")
+                    .message("Reservation created for " + event.getItems().size() + " item(s)")
                     .build());
         } catch (Exception ex) {
             log.error("Reservation failed for orderId={} reason={}", command.getOrderId(), ex.getMessage());
             InventoryReservationEvent event = InventoryReservationEvent.builder()
                     .success(false)
                     .orderId(command.getOrderId())
-                    .reservationId(null)
-                    .productId(items.get(0).getProductId())
-                    .quantity(items.get(0).getQuantity())
-                    .status(null)
                     .message("Reservation failed: " + ex.getMessage())
+                    .items(items.stream().map(i -> InventoryReservationEvent.Item.builder()
+                            .reservationId(null)
+                            .productId(i.getProductId())
+                            .quantity(i.getQuantity())
+                            .status(null)
+                            .build()).toList())
                     .build();
             producer.publishInventoryEvent(event);
         }
@@ -105,13 +110,21 @@ public class InventorySagaListener {
                 .message("Reservation cancelled")
                 .build());
         // Emit inventory event to orchestrator
-        producer.publishInventoryEvent(InventoryReservationEvent.builder()
+        var cancelledEventItems = inventoryService.getReservationsByOrderId(command.getOrderId()).stream()
+                .map(r -> InventoryReservationEvent.Item.builder()
+                        .reservationId(r.getReservationId())
+                        .productId(r.getProductId())
+                        .quantity(r.getQuantity())
+                        .status(ReservationStatus.CANCELLED)
+                        .build())
+                .toList();
+                producer.publishInventoryEvent(InventoryReservationEvent.builder()
                 .success(true)
                 .orderId(command.getOrderId())
                 .message("Reservation cancelled")
-                .status(ReservationStatus.CANCELLED)
+                .items(cancelledEventItems)
                 .build());
-    }
+        }
 
     @KafkaListener(topics = "#{'${saga.topics.inventoryConfirmCommand:inventory.confirm.command}'}",
             groupId = "#{'${spring.kafka.consumer.group-id}'}")
@@ -124,11 +137,21 @@ public class InventorySagaListener {
                 .message("Reservation confirmed")
                 .build());
         // Emit inventory event to orchestrator
+        // Reconstruct current reservations for the order to include reservationIds
+        var items = inventoryService.getReservationsByOrderId(command.getOrderId()).stream()
+                .map(r -> InventoryReservationEvent.Item.builder()
+                        .reservationId(r.getReservationId())
+                        .productId(r.getProductId())
+                        .quantity(r.getQuantity())
+                        .status(ReservationStatus.CONFIRMED)
+                        .build())
+                .toList();
         producer.publishInventoryEvent(InventoryReservationEvent.builder()
                 .success(true)
                 .orderId(command.getOrderId())
                 .message("Reservation confirmed")
-                .status(ReservationStatus.CONFIRMED)
+                .items(items)
                 .build());
     }
+
 }

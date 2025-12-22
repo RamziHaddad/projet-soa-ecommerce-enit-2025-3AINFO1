@@ -21,7 +21,7 @@ public class Reservation {
     @Column(name = "reservation_id")
     private UUID reservationId;
 
-    @Column(name = "order_id", unique = true, nullable = false, length = 50)
+    @Column(name = "order_id", nullable = false, length = 50)
     private String orderId;
 
     @Column(name = "product_id", nullable = false, length = 50)

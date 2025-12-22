@@ -32,47 +32,52 @@ public class InventoryService {
     public ReserveInventoryResponse reserveInventory(ReserveInventoryRequest request) {
         log.info("Reserving inventory for orderId: {}", request.getOrderId());
 
-        // Idempotency check
-        Optional<Reservation> existingReservation = reservationRepository.findByOrderId(request.getOrderId());
-
-        if (existingReservation.isPresent()) {
-            log.info("Reservation already exists for orderId: {}", request.getOrderId());
-            return buildSuccessResponse(existingReservation.get());
+        // Idempotency: if any reservations already exist for this order, return them
+        var existing = reservationRepository.findAllByOrderId(request.getOrderId());
+        if (!existing.isEmpty()) {
+            log.info("Reservations already exist for orderId: {} ({} items)", request.getOrderId(), existing.size());
+            return buildSuccessResponse(existing);
         }
 
-        String productId = request.getItems().get(0).getProductId();
-        Integer quantity = request.getItems().get(0).getQuantity();
-
-        // Pessimistic locking for concurrency control
-        Inventory inventory = inventoryRepository
-                .findByProductIdWithLock(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
-
-        // Check availability
-        if (inventory.getAvailableQuantity() < quantity) {
-            log.warn("Insufficient stock for product: {}, requested: {}, available: {}",
-                    productId, quantity, inventory.getAvailableQuantity());
-            throw new InsufficientStockException("Insufficient stock for product: " + productId);
+        // Validate request
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new IllegalArgumentException("No items provided for reservation");
         }
 
-        // Update inventory counters
-        inventory.setAvailableQuantity(inventory.getAvailableQuantity() - quantity);
-        inventory.setReservedQuantity(inventory.getReservedQuantity() + quantity);
-        inventoryRepository.save(inventory);
+        // Phase 1: Lock and validate availability for all items
+        for (ReserveInventoryRequest.ItemRequest item : request.getItems()) {
+            Inventory inv = inventoryRepository
+                    .findByProductIdWithLock(item.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+            if (inv.getAvailableQuantity() < item.getQuantity()) {
+                log.warn("Insufficient stock for product: {}, requested: {}, available: {}",
+                        item.getProductId(), item.getQuantity(), inv.getAvailableQuantity());
+                throw new InsufficientStockException("Insufficient stock for product: " + item.getProductId());
+            }
+        }
 
-        // Create reservation
-        Reservation reservation = Reservation.builder()
-                .reservationId(UUID.randomUUID())
-                .orderId(request.getOrderId())
-                .productId(productId)
-                .quantity(quantity)
-                .status(ReservationStatus.RESERVED)
-                .build();
+        // Phase 2: Apply all updates and create reservations
+        var savedReservations = new java.util.ArrayList<Reservation>(request.getItems().size());
+        for (ReserveInventoryRequest.ItemRequest item : request.getItems()) {
+            Inventory inv = inventoryRepository
+                    .findByProductIdWithLock(item.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+            inv.setAvailableQuantity(inv.getAvailableQuantity() - item.getQuantity());
+            inv.setReservedQuantity(inv.getReservedQuantity() + item.getQuantity());
+            inventoryRepository.save(inv);
 
-        reservationRepository.save(reservation);
+            Reservation reservation = Reservation.builder()
+                    .reservationId(UUID.randomUUID())
+                    .orderId(request.getOrderId())
+                    .productId(item.getProductId())
+                    .quantity(item.getQuantity())
+                    .status(ReservationStatus.RESERVED)
+                    .build();
+            savedReservations.add(reservationRepository.save(reservation));
+        }
 
-        log.info("Inventory reserved successfully for orderId: {}", request.getOrderId());
-        return buildSuccessResponse(reservation);
+        log.info("Inventory reserved successfully for orderId: {} ({} items)", request.getOrderId(), savedReservations.size());
+        return buildSuccessResponse(savedReservations);
     }
 
     /**
@@ -83,40 +88,34 @@ public class InventoryService {
     public void cancelReservation(String orderId) {
         log.info("Cancelling reservation for orderId: {}", orderId);
 
-        Optional<Reservation> reservationOpt = reservationRepository.findByOrderId(orderId);
-
-        if (reservationOpt.isEmpty()) {
-            log.info("No reservation found for orderId: {}, treating as idempotent success", orderId);
+        var reservations = reservationRepository.findAllByOrderId(orderId);
+        if (reservations.isEmpty()) {
+            log.info("No reservations found for orderId: {}, treating as idempotent success", orderId);
             return;
         }
 
-        Reservation reservation = reservationOpt.get();
+        for (Reservation reservation : reservations) {
+            if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+                continue;
+            }
+            if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
+                log.warn("Cannot cancel confirmed reservation for orderId: {} productId: {}", orderId, reservation.getProductId());
+                continue;
+            }
 
-        // Idempotency: if already cancelled or confirmed, skip
-        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
-            log.info("Reservation already cancelled for orderId: {}", orderId);
-            return;
+            Inventory inventory = inventoryRepository
+                    .findByProductIdWithLock(reservation.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + reservation.getProductId()));
+
+            inventory.setAvailableQuantity(inventory.getAvailableQuantity() + reservation.getQuantity());
+            inventory.setReservedQuantity(inventory.getReservedQuantity() - reservation.getQuantity());
+            inventoryRepository.save(inventory);
+
+            reservation.setStatus(ReservationStatus.CANCELLED);
+            reservationRepository.save(reservation);
         }
 
-        if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
-            log.warn("Cannot cancel confirmed reservation for orderId: {}", orderId);
-            return;
-        }
-
-        // Restore inventory
-        Inventory inventory = inventoryRepository
-                .findByProductIdWithLock(reservation.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found: " + reservation.getProductId()));
-
-        inventory.setAvailableQuantity(inventory.getAvailableQuantity() + reservation.getQuantity());
-        inventory.setReservedQuantity(inventory.getReservedQuantity() - reservation.getQuantity());
-        inventoryRepository.save(inventory);
-
-        // Update reservation status
-        reservation.setStatus(ReservationStatus.CANCELLED);
-        reservationRepository.save(reservation);
-
-        log.info("Reservation cancelled successfully for orderId: {}", orderId);
+        log.info("Reservations cancelled successfully for orderId: {}", orderId);
     }
 
     /**
@@ -127,35 +126,53 @@ public class InventoryService {
     public void confirmReservation(String orderId) {
         log.info("Confirming reservation for orderId: {}", orderId);
 
-        Reservation reservation = reservationRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Reservation not found for orderId: " + orderId));
-
-        // Idempotency check
-        if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
-            log.info("Reservation already confirmed for orderId: {}", orderId);
-            return;
+        var reservations = reservationRepository.findAllByOrderId(orderId);
+        if (reservations.isEmpty()) {
+            throw new RuntimeException("Reservation not found for orderId: " + orderId);
         }
 
-        Inventory inventory = inventoryRepository
-                .findByProductIdWithLock(reservation.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found: " + reservation.getProductId()));
+        boolean anyUpdated = false;
+        for (Reservation reservation : reservations) {
+            if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
+                continue;
+            }
+            Inventory inventory = inventoryRepository
+                    .findByProductIdWithLock(reservation.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + reservation.getProductId()));
 
-        // Move from reserved to sold (decrease reserved_quantity)
-        inventory.setReservedQuantity(inventory.getReservedQuantity() - reservation.getQuantity());
-        inventoryRepository.save(inventory);
+            inventory.setReservedQuantity(inventory.getReservedQuantity() - reservation.getQuantity());
+            inventoryRepository.save(inventory);
 
-        reservation.setStatus(ReservationStatus.CONFIRMED);
-        reservationRepository.save(reservation);
+            reservation.setStatus(ReservationStatus.CONFIRMED);
+            reservationRepository.save(reservation);
+            anyUpdated = true;
+        }
 
-        log.info("Reservation confirmed successfully for orderId: {}", orderId);
+        if (anyUpdated) {
+            log.info("Reservations confirmed successfully for orderId: {}", orderId);
+        } else {
+            log.info("Reservations already confirmed for orderId: {}", orderId);
+        }
     }
 
-    private ReserveInventoryResponse buildSuccessResponse(Reservation reservation) {
+    private ReserveInventoryResponse buildSuccessResponse(java.util.List<Reservation> reservations) {
+        var items = reservations.stream()
+                .map(r -> ReserveInventoryResponse.ItemReservation.builder()
+                        .reservationId(r.getReservationId())
+                        .productId(r.getProductId())
+                        .quantity(r.getQuantity())
+                        .status(r.getStatus())
+                        .build())
+                .toList();
         return ReserveInventoryResponse.builder()
                 .success(true)
-                .reservationId(reservation.getReservationId())
-                .orderId(reservation.getOrderId())
+                .orderId(reservations.get(0).getOrderId())
                 .message("Inventory reserved successfully")
+                .items(items)
                 .build();
+    }
+
+    public java.util.List<Reservation> getReservationsByOrderId(String orderId) {
+        return reservationRepository.findAllByOrderId(orderId);
     }
 }

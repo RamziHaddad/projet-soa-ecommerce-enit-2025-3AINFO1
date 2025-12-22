@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -15,9 +16,17 @@ import java.util.UUID;
 public class InventoryReservationEvent {
     private boolean success;
     private String orderId;
-    private UUID reservationId;
-    private String productId;
-    private Integer quantity;
-    private ReservationStatus status;
     private String message;
+    private List<Item> items;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Item {
+        private UUID reservationId;
+        private String productId;
+        private Integer quantity;
+        private ReservationStatus status;
+    }
 }
