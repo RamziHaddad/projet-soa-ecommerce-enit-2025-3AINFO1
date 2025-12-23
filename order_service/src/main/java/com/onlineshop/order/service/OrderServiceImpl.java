@@ -1,6 +1,7 @@
 package com.onlineshop.order.service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -13,6 +14,7 @@ import com.onlineshop.order.dto.response.OrderResponse;
 import com.onlineshop.order.exception.OrderNotFoundException;
 import com.onlineshop.order.model.Order;
 import com.onlineshop.order.model.OrderItem;
+import com.onlineshop.order.config.OrderServiceConfig;
 import com.onlineshop.order.model.OrderStatus;
 import com.onlineshop.order.repository.OrderRepository;
 import com.onlineshop.order.saga.SagaOrchestrator;
@@ -31,6 +33,7 @@ public class OrderServiceImpl implements OrderService {
     
     private final OrderRepository orderRepository;
     private final SagaOrchestrator sagaOrchestrator;
+    private final OrderServiceConfig orderServiceConfig;
     
     @Override
     @Transactional
@@ -115,15 +118,32 @@ public class OrderServiceImpl implements OrderService {
     public void cancelOrder(@NonNull Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
-        
-        if (order.getStatus() == OrderStatus.COMPLETED || order.getStatus() == OrderStatus.CANCELLED) {
+
+        // Cannot cancel already cancelled orders
+        if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new IllegalStateException("Cannot cancel order with status: " + order.getStatus());
+        }
+
+        // For completed orders, check if within cancellation window
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            LocalDateTime completedTime = order.getUpdatedAt();
+            Duration timeSinceCompletion = Duration.between(completedTime, LocalDateTime.now());
+            long hoursSinceCompletion = timeSinceCompletion.toHours();
+
+            if (hoursSinceCompletion > orderServiceConfig.getCancellationWindowHours()) {
+                throw new IllegalStateException(
+                    "Order completed " + hoursSinceCompletion + " hours ago. " +
+                    "Cancellation window is " + orderServiceConfig.getCancellationWindowHours() + " hours."
+                );
+            }
+            log.info("Allowing cancellation of completed order within time window. Order: {}, Completed: {} hours ago",
+                    order.getOrderNumber(), hoursSinceCompletion);
         }
 
         order.setStatus(OrderStatus.CANCELLED);
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
-        
+
         if (order.getStatus() != OrderStatus.PENDING) {
             try {
                 sagaOrchestrator.compensate(order);
@@ -132,7 +152,7 @@ public class OrderServiceImpl implements OrderService {
                 log.error("Failed to compensate order: {}", order.getOrderNumber(), e);
             }
         }
-        
+
         log.info("Order cancelled successfully: {}", order.getOrderNumber());
     }
     

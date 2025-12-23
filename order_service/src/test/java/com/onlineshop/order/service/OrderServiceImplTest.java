@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.onlineshop.order.dto.request.OrderItemRequest;
 import com.onlineshop.order.dto.request.OrderRequest;
 import com.onlineshop.order.dto.response.OrderResponse;
+import com.onlineshop.order.config.OrderServiceConfig;
 import com.onlineshop.order.exception.OrderNotFoundException;
 import com.onlineshop.order.model.Order;
 import com.onlineshop.order.model.OrderItem;
@@ -35,6 +36,9 @@ class OrderServiceImplTest {
 
     @Mock
     private SagaOrchestrator sagaOrchestrator;
+
+    @Mock
+    private OrderServiceConfig orderServiceConfig;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -204,7 +208,9 @@ class OrderServiceImplTest {
     void testCancelOrderAlreadyCompleted() {
         // Given
         testOrder.setStatus(OrderStatus.COMPLETED);
+        testOrder.setUpdatedAt(LocalDateTime.now().minusHours(25)); // Completed 25 hours ago
         when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
+        when(orderServiceConfig.getCancellationWindowHours()).thenReturn(24); // Window is 24 hours
 
         // When & Then
         assertThrows(IllegalStateException.class, () -> {

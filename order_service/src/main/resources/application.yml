@@ -150,6 +150,11 @@ resilience4j:
         coreThreadPoolSize: ${THREAD_POOL_BULKHEAD_SHIPPING_CORE_THREAD_POOL_SIZE:2}
         queueCapacity: ${THREAD_POOL_BULKHEAD_SHIPPING_QUEUE_CAPACITY:2}
 
+# Order Service Configuration
+order:
+  cancellation:
+    completed-window-hours: ${ORDER_CANCELLATION_COMPLETED_WINDOW_HOURS:24}
+
 # Logging Configuration
 logging:
   level:
