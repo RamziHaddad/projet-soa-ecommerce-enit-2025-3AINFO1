@@ -7,9 +7,8 @@ WORKDIR /app
 COPY mvnw .
 COPY mvnw.cmd .
 COPY pom.xml .
-# Copier explicitement les fichiers Maven Wrapper pour éviter les problèmes avec les dossiers cachés
-COPY .mvn/wrapper/maven-wrapper.jar .mvn/wrapper/
-COPY .mvn/wrapper/maven-wrapper.properties .mvn/wrapper/
+# Copier le dossier .mvn complet
+COPY .mvn .mvn
 
 # Rendre mvnw exécutable
 RUN chmod +x ./mvnw

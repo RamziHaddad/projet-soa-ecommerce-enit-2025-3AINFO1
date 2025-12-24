@@ -1,15 +1,15 @@
 
 services:
   # -----------------------------
-  # Base de données PostgreSQL
+  # PostgreSQL Data Base
   # -----------------------------
   postgres:
     image: postgres:13-alpine
     container_name: order-postgres
     environment:
       POSTGRES_DB: order_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
@@ -21,6 +21,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # -----------------------------
   # Microservice Order Service
@@ -29,34 +30,11 @@ services:
     build: .
     container_name: order-service
     ports:
-      - "8080:8080"
-    environment:
-      # Database Configuration
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/order_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      
-      # JPA Configuration
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_SHOW_SQL: "true"
-      
-      # External Services Configuration (WireMock Services)
-      SERVICES_INVENTORY_URL: http://wiremock-inventory:8080
-      SERVICES_PAYMENT_URL: http://wiremock-payment:8080
-      SERVICES_SHIPPING_URL: http://wiremock-shipping:8080
-      SERVICES_COMMUNICATION_URL: http://wiremock-inventory:8080
-      
-      # Logging & Actuator
-      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
-      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
+      - "${SERVER_PORT:-8080}:8080"
+    env_file:
+      - .env
     depends_on:
       postgres:
-        condition: service_healthy
-      wiremock-inventory:
-        condition: service_healthy
-      wiremock-payment:
-        condition: service_healthy
-      wiremock-shipping:
         condition: service_healthy
     networks:
       - order-network
@@ -66,84 +44,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    profiles: ["full"]
+    restart: unless-stopped
 
   # -----------------------------
-  # WireMock Inventory Service
-  # -----------------------------
-  wiremock-inventory:
-    image: wiremock/wiremock:latest
-    container_name: wiremock-inventory
-    ports:
-      - "8081:8080"
-    volumes:
-      - ./wiremock/inventory/mappings:/home/wiremock/mappings
-    command: --port 8080 --verbose
-    networks:
-      - order-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    profiles: ["full", "mock"]
-
-  # -----------------------------
-  # WireMock Payment Service
-  # -----------------------------
-  wiremock-payment:
-    image: wiremock/wiremock:latest
-    container_name: wiremock-payment
-    ports:
-      - "8082:8080"
-    volumes:
-      - ./wiremock/payment/mappings:/home/wiremock/mappings
-    command: --port 8080 --verbose
-    networks:
-      - order-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    profiles: ["full", "mock"]
-
-  # -----------------------------
-  # WireMock Shipping Service
-  # -----------------------------
-  wiremock-shipping:
-    image: wiremock/wiremock:latest
-    container_name: wiremock-shipping
-    ports:
-      - "8083:8080"
-    volumes:
-      - ./wiremock/shipping/mappings:/home/wiremock/mappings
-    command: --port 8080 --verbose
-    networks:
-      - order-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    profiles: ["full", "mock"]
-
-  # -----------------------------
-  # Mock API Gateway (pour dev simple)
-  # -----------------------------
-  mock-api-gateway:
-    image: nginx:alpine
-    container_name: mock-api-gateway
-    ports:
-      - "8081:80"
-    volumes:
-      - ./mock-nginx.conf:/etc/nginx/nginx.conf
-    networks:
-      - order-network
-    profiles: ["dev"]
-
-  # -----------------------------
-  # Redis Cache (optionnel)
+  # Redis Cache
   # -----------------------------
   redis:
     image: redis:7-alpine
@@ -159,10 +63,10 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    profiles: ["full"]
+    restart: unless-stopped
 
   # -----------------------------
-  # Prometheus (optionnel)
+  # Prometheus
   # -----------------------------
   prometheus:
     image: prom/prometheus:latest
@@ -181,10 +85,10 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
-    profiles: ["full"]
+    restart: unless-stopped
 
   # -----------------------------
-  # Grafana (optionnel)
+  # Grafana
   # -----------------------------
   grafana:
     image: grafana/grafana:latest
@@ -202,7 +106,7 @@ services:
       - order-network
     depends_on:
       - prometheus
-    profiles: ["full"]
+    restart: unless-stopped
 
 volumes:
   postgres_data:
