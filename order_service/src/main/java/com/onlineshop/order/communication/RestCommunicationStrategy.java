@@ -188,8 +188,9 @@ public class RestCommunicationStrategy implements OrderProcessingCommunicationHa
                 .build();
     }
 
-    public InventoryResponse fallbackReleaseInventory(String transactionId) {
-        log.warn("Circuit breaker triggered for inventory release. Transaction: {}. Will retry.", transactionId);
+    public InventoryResponse fallbackReleaseInventory(String transactionId, Exception ex) {
+        log.warn("Circuit breaker triggered for inventory release. Transaction: {}. Will retry. Error: {}",
+                transactionId, ex.getMessage());
         return InventoryResponse.builder()
                 .success(false)
                 .message("Failed to release inventory – will retry compensation")
@@ -216,8 +217,9 @@ public class RestCommunicationStrategy implements OrderProcessingCommunicationHa
                 .build();
     }
 
-    public PaymentResponse fallbackRefundPayment(String transactionId) {
-        log.warn("Circuit breaker triggered for payment refund. Transaction: {}. Will retry.", transactionId);
+    public PaymentResponse fallbackRefundPayment(String transactionId, Exception ex) {
+        log.warn("Circuit breaker triggered for payment refund. Transaction: {}. Will retry. Error: {}",
+                transactionId, ex.getMessage());
         return PaymentResponse.builder()
                 .success(false)
                 .message("Failed to refund payment – will retry compensation")
@@ -244,8 +246,9 @@ public class RestCommunicationStrategy implements OrderProcessingCommunicationHa
                 .build();
     }
 
-    public ShippingResponse fallbackCancelShipping(String trackingNumber) {
-        log.warn("Circuit breaker triggered for shipping cancellation. Tracking: {}. Will retry.", trackingNumber);
+    public ShippingResponse fallbackCancelShipping(String trackingNumber, Exception ex) {
+        log.warn("Circuit breaker triggered for shipping cancellation. Tracking: {}. Will retry. Error: {}",
+                trackingNumber, ex.getMessage());
         return ShippingResponse.builder()
                 .success(false)
                 .message("Failed to cancel shipping – will retry compensation")
