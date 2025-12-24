@@ -30,13 +30,13 @@ class OrderTest {
         order.onCreate(); // Manually invoke to set timestamps
         
         orderItem1 = OrderItem.builder()
-                .productId(1L)
+                .productId("PROD-001")
                 .quantity(2)
                 .unitPrice(new BigDecimal("29.99"))
                 .build();
         
         orderItem2 = OrderItem.builder()
-                .productId(2L)
+                .productId("PROD-002")
                 .quantity(1)
                 .unitPrice(new BigDecimal("49.99"))
                 .build();

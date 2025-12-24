@@ -50,7 +50,7 @@ class OrderServiceImplTest {
     void setUp() {
         // Initialize test data
         OrderItemRequest itemRequest = OrderItemRequest.builder()
-                .productId(1L)
+                .productId("PROD-001")
                 .quantity(2)
                 .unitPrice(new BigDecimal("29.99"))
                 .build();
@@ -64,7 +64,7 @@ class OrderServiceImplTest {
         // Create test order
         OrderItem orderItem = OrderItem.builder()
                 .id(1L)
-                .productId(1L)
+                .productId("PROD-001")
                 .quantity(2)
                 .unitPrice(new BigDecimal("29.99"))
                 .build();

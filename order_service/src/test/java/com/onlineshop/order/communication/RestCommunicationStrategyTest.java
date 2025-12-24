@@ -49,7 +49,7 @@ class RestCommunicationStrategyTest {
         void setUp() {
 
                 InventoryItemRequest inventoryItem = InventoryItemRequest.builder()
-                                .productId(1L)
+                                .productId("PROD-001")
                                 .quantity(2)
                                 .build();
 

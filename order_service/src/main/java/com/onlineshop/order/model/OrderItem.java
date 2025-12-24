@@ -35,7 +35,7 @@ public class OrderItem {
     private Order order;
     
     @Column(nullable = false)
-    private Long productId;
+    private String productId;
     
     @Column(nullable = false)
     private Integer quantity;

@@ -47,7 +47,7 @@ class OrderControllerTest {
     void setUp() {
         // Initialize test data
         OrderItemRequest itemRequest = OrderItemRequest.builder()
-                .productId(1L)
+                .productId("PROD-001")
                 .quantity(2)
                 .unitPrice(new BigDecimal("29.99"))
                 .build();
@@ -60,7 +60,7 @@ class OrderControllerTest {
         
         OrderItemResponse itemResponse = OrderItemResponse.builder()
                 .id(1L)
-                .productId(1L)
+                .productId("PROD-001")
                 .productName("Test Product")
                 .quantity(2)
                 .unitPrice(new BigDecimal("29.99"))
