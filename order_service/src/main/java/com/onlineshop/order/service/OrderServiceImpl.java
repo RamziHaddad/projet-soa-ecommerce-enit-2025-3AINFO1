@@ -30,64 +30,92 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class OrderServiceImpl implements OrderService {
-    
+
     private final OrderRepository orderRepository;
     private final SagaOrchestrator sagaOrchestrator;
     private final OrderServiceConfig orderServiceConfig;
-    
+
     @Override
-    @Transactional
     public OrderResponse createOrder(OrderRequest request) {
         log.info("Creating order for customer: {}", request.getCustomerId());
-        
-        
+
+        Long orderId = createOrderInTransaction(request);
+        startSagaAsync(orderId);
+
+        Order savedOrder = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        return mapToResponse(savedOrder);
+    }
+
+    /**
+     * Creates and saves the order in a dedicated transaction.
+     * This transaction commits before the saga starts.
+     *
+     * @param request The order creation request
+     * @return The ID of the created order
+     */
+    @Transactional
+    protected Long createOrderInTransaction(OrderRequest request) {
         String orderNumber = generateOrderNumber();
-        
-        
+
         Order order = Order.builder()
                 .orderNumber(orderNumber)
                 .customerId(request.getCustomerId())
                 .status(OrderStatus.PROCESSING)
                 .shippingAddress(request.getShippingAddress())
                 .build();
-        
-        
+
         BigDecimal totalAmount = BigDecimal.ZERO;
         for (var itemRequest : request.getItems()) {
             BigDecimal itemSubtotal = itemRequest.getUnitPrice()
-                .multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
+                    .multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
 
             OrderItem item = OrderItem.builder()
-                .order(order)
-                .productId(itemRequest.getProductId())
-                .quantity(itemRequest.getQuantity())
-                .unitPrice(itemRequest.getUnitPrice())
-                .subtotal(itemSubtotal)
-                .build();
+                    .order(order)
+                    .productId(itemRequest.getProductId())
+                    .quantity(itemRequest.getQuantity())
+                    .unitPrice(itemRequest.getUnitPrice())
+                    .subtotal(itemSubtotal)
+                    .build();
 
             order.getItems().add(item);
             totalAmount = totalAmount.add(itemSubtotal);
         }
         order.setTotalAmount(totalAmount);
-        
-        
+
         Order savedOrder = orderRepository.save(order);
-        
-        
-        try {
-            sagaOrchestrator.startSaga(savedOrder);
-            log.info("SAGA workflow started for order: {}", orderNumber);
-        } catch (Exception e) {
-            log.error("Failed to start SAGA for order: {}", orderNumber, e);
-            
-            savedOrder.setStatus(OrderStatus.FAILED);
-            orderRepository.save(savedOrder);
-            throw new RuntimeException("Failed to start order processing", e);
-        }
-        
-        return mapToResponse(savedOrder);
+        return savedOrder.getId();
     }
-    
+
+    /**
+     * Starts the saga workflow asynchronously outside the order creation
+     * transaction.
+     * This ensures that the saga execution does not hold the order creation
+     * transaction open.
+     * Each saga step will execute in its own transaction.
+     *
+     * @param orderId The ID of the order to start the saga for
+     */
+    private void startSagaAsync(Long orderId) {
+        try {
+            // Fetch the order in a separate context
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+            sagaOrchestrator.startSaga(order);
+            log.info("SAGA workflow initiated for order: {}", order.getOrderNumber());
+        } catch (Exception e) {
+            log.error("Failed to start SAGA for order ID: {}", orderId, e);
+
+            // Update order status to failed
+            orderRepository.findById(orderId).ifPresent(order -> {
+                order.setStatus(OrderStatus.FAILED);
+                orderRepository.save(order);
+            });
+        }
+    }
+
     @Override
     @Transactional(readOnly = true)
     public OrderResponse getOrderById(@NonNull Long orderId) {
@@ -95,7 +123,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
         return mapToResponse(order);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public OrderResponse getOrderByNumber(@NonNull String orderNumber) {
@@ -103,7 +131,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with number: " + orderNumber));
         return mapToResponse(order);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByCustomerId(Long customerId) {
@@ -112,7 +140,7 @@ public class OrderServiceImpl implements OrderService {
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
-    
+
     @Override
     @Transactional
     public void cancelOrder(@NonNull Long orderId) {
@@ -132,9 +160,9 @@ public class OrderServiceImpl implements OrderService {
 
             if (hoursSinceCompletion > orderServiceConfig.getCancellationWindowHours()) {
                 throw new IllegalStateException(
-                    "Order completed " + hoursSinceCompletion + " hours ago. " +
-                    "Cancellation window is " + orderServiceConfig.getCancellationWindowHours() + " hours."
-                );
+                        "Order completed " + hoursSinceCompletion + " hours ago. " +
+                                "Cancellation window is " + orderServiceConfig.getCancellationWindowHours()
+                                + " hours.");
             }
             log.info("Allowing cancellation of completed order within time window. Order: {}, Completed: {} hours ago",
                     order.getOrderNumber(), hoursSinceCompletion);
@@ -155,32 +183,32 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Order cancelled successfully: {}", order.getOrderNumber());
     }
-    
+
     private String generateOrderNumber() {
         String timestamp = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String random = String.valueOf((int) (Math.random() * 1000));
         return "ORD-" + timestamp + "-" + random;
     }
-    
-        private OrderResponse mapToResponse(Order order) {
+
+    private OrderResponse mapToResponse(Order order) {
         return OrderResponse.builder()
-            .id(order.getId())
-            .orderNumber(order.getOrderNumber())
-            .customerId(order.getCustomerId())
-            .status(order.getStatus())
-            .totalAmount(order.getTotalAmount())
-            .shippingAddress(order.getShippingAddress())
-            .createdAt(order.getCreatedAt())
-            .updatedAt(order.getUpdatedAt())
-            .items(order.getItems().stream()
-                .map(item -> com.onlineshop.order.dto.response.OrderItemResponse.builder()
-                    .id(item.getId())
-                    .productId(item.getProductId())
-                    .quantity(item.getQuantity())
-                    .unitPrice(item.getUnitPrice())
-                    .subtotal(item.getSubtotal())
-                    .build())
-                .collect(Collectors.toList()))
-            .build();
-        }
+                .id(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .customerId(order.getCustomerId())
+                .status(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .shippingAddress(order.getShippingAddress())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .items(order.getItems().stream()
+                        .map(item -> com.onlineshop.order.dto.response.OrderItemResponse.builder()
+                                .id(item.getId())
+                                .productId(item.getProductId())
+                                .quantity(item.getQuantity())
+                                .unitPrice(item.getUnitPrice())
+                                .subtotal(item.getSubtotal())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
 }

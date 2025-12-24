@@ -3,6 +3,7 @@ package com.onlineshop.order.saga;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.onlineshop.order.exception.SagaStateUpdateException;
@@ -35,29 +36,34 @@ public class SagaStateService {
      * Updates inventory state and advances to the next step in a single
      * transaction.
      * Batches saga state update, step transition, and order status update.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order         The order being processed
      * @param transactionId The inventory transaction ID
      * @param nextStep      The next step to transition to
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateInventoryStateAndProceed(Order order, String transactionId, SagaStep nextStep) {
         try {
             log.debug("Updating inventory state for order: {} with transaction: {}",
                     order.getOrderNumber(), transactionId);
 
-            SagaState sagaState = getSagaState(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
+
+            SagaState sagaState = getSagaState(managedOrder);
 
             sagaState.setInventoryReserved(true);
             sagaState.setInventoryTransactionId(transactionId);
-
             sagaState.setCurrentStep(nextStep);
             sagaState.setStatus(SagaStatus.IN_PROGRESS);
 
-            order.setStatus(OrderStatus.INVENTORY_RESERVED);
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+            managedOrder.setStatus(OrderStatus.INVENTORY_RESERVED);
+            sagaStateRepository.save(sagaState);
+            orderRepository.save(managedOrder);
 
             log.debug("Successfully updated inventory state and proceeded to step: {} for order: {}",
                     nextStep, order.getOrderNumber());
@@ -72,29 +78,34 @@ public class SagaStateService {
     /**
      * Updates payment state and advances to the next step in a single transaction.
      * Batches saga state update and step transition.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order         The order being processed
      * @param transactionId The payment transaction ID
      * @param nextStep      The next step to transition to
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updatePaymentStateAndProceed(Order order, String transactionId, SagaStep nextStep) {
         try {
             log.debug("Updating payment state for order: {} with transaction: {}",
                     order.getOrderNumber(), transactionId);
 
-            SagaState sagaState = getSagaState(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
+
+            SagaState sagaState = getSagaState(managedOrder);
 
             sagaState.setPaymentProcessed(true);
             sagaState.setPaymentTransactionId(transactionId);
-
             sagaState.setCurrentStep(nextStep);
             sagaState.setStatus(SagaStatus.IN_PROGRESS);
 
-            order.setStatus(OrderStatus.PAYMENT_PROCESSED);
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+            managedOrder.setStatus(OrderStatus.PAYMENT_PROCESSED);
+            sagaStateRepository.save(sagaState);
+            orderRepository.save(managedOrder);
 
             log.debug("Successfully updated payment state and proceeded to step: {} for order: {}",
                     nextStep, order.getOrderNumber());
@@ -109,29 +120,34 @@ public class SagaStateService {
     /**
      * Updates shipping state and advances to the next step in a single transaction.
      * Batches saga state update and step transition.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order          The order being processed
      * @param trackingNumber The shipping tracking number
      * @param nextStep       The next step to transition to
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateShippingStateAndProceed(Order order, String trackingNumber, SagaStep nextStep) {
         try {
             log.debug("Updating shipping state for order: {} with tracking: {}",
                     order.getOrderNumber(), trackingNumber);
 
-            SagaState sagaState = getSagaState(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
+
+            SagaState sagaState = getSagaState(managedOrder);
 
             sagaState.setShippingArranged(true);
             sagaState.setShippingTransactionId(trackingNumber);
-
             sagaState.setCurrentStep(nextStep);
             sagaState.setStatus(SagaStatus.IN_PROGRESS);
 
-            order.setStatus(OrderStatus.SHIPPING_ARRANGED);
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+            managedOrder.setStatus(OrderStatus.SHIPPING_ARRANGED);
+            sagaStateRepository.save(sagaState);
+            orderRepository.save(managedOrder);
 
             log.debug("Successfully updated shipping state and proceeded to step: {} for order: {}",
                     nextStep, order.getOrderNumber());
@@ -146,21 +162,25 @@ public class SagaStateService {
     /**
      * Updates the retryable flag for a saga.
      * Used to mark whether a saga can be retried after a failure.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order     The order being processed
      * @param retryable Whether the saga can be retried
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateRetryableState(Order order, boolean retryable) {
         try {
             log.debug("Updating retryable state for order: {} to: {}", order.getOrderNumber(), retryable);
 
-            SagaState sagaState = getSagaState(order);
-            sagaState.setRetryable(retryable);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
 
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+            SagaState sagaState = getSagaState(managedOrder);
+            sagaState.setRetryable(retryable);
+            sagaStateRepository.save(sagaState);
 
             log.debug("Successfully updated retryable state for order: {}", order.getOrderNumber());
 
@@ -174,23 +194,29 @@ public class SagaStateService {
     /**
      * Completes the order and saga in a single transaction.
      * Updates both order status and saga status atomically.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order The order to complete
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void completeOrderAndSaga(Order order) {
         try {
             log.debug("Completing order and saga for: {}", order.getOrderNumber());
 
-            order.setStatus(OrderStatus.COMPLETED);
-            order.setUpdatedAt(LocalDateTime.now());
-            orderRepository.save(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
 
-            SagaState sagaState = getSagaState(order);
+            managedOrder.setStatus(OrderStatus.COMPLETED);
+            managedOrder.setUpdatedAt(LocalDateTime.now());
+
+            SagaState sagaState = getSagaState(managedOrder);
             sagaState.setStatus(SagaStatus.COMPLETED);
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+
+            sagaStateRepository.save(sagaState);
+            orderRepository.save(managedOrder);
 
             log.info("Successfully completed order and saga for: {}", order.getOrderNumber());
 
@@ -204,25 +230,31 @@ public class SagaStateService {
     /**
      * Marks the order and saga as failed in a single transaction.
      * Updates both order status and saga status atomically.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order     The order that failed
      * @param exception The exception that caused the failure
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failOrderAndSaga(Order order, Exception exception) {
         try {
             log.debug("Marking order and saga as failed for: {}", order.getOrderNumber());
 
-            order.setStatus(OrderStatus.FAILED);
-            order.setUpdatedAt(LocalDateTime.now());
-            orderRepository.save(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
 
-            SagaState sagaState = getSagaState(order);
+            managedOrder.setStatus(OrderStatus.FAILED);
+            managedOrder.setUpdatedAt(LocalDateTime.now());
+
+            SagaState sagaState = getSagaState(managedOrder);
             sagaState.setStatus(SagaStatus.FAILED);
             sagaState.setErrorMessage(exception.getMessage());
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+
+            sagaStateRepository.save(sagaState);
+            orderRepository.save(managedOrder);
 
             log.info("Successfully marked order and saga as failed for: {}", order.getOrderNumber());
 
@@ -242,21 +274,26 @@ public class SagaStateService {
     /**
      * Updates only the inventory state.
      * Used primarily for compensation scenarios.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order         The order being processed
      * @param transactionId The inventory transaction ID
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateInventoryState(Order order, String transactionId) {
         try {
             log.debug("Updating inventory state only for order: {}", order.getOrderNumber());
 
-            SagaState sagaState = getSagaState(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
+
+            SagaState sagaState = getSagaState(managedOrder);
             sagaState.setInventoryReserved(true);
             sagaState.setInventoryTransactionId(transactionId);
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+            sagaStateRepository.save(sagaState);
 
         } catch (Exception e) {
             log.error("Failed to update inventory state for order: {}", order.getOrderNumber(), e);
@@ -268,21 +305,26 @@ public class SagaStateService {
     /**
      * Updates only the payment state.
      * Used primarily for compensation scenarios.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order         The order being processed
      * @param transactionId The payment transaction ID
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updatePaymentState(Order order, String transactionId) {
         try {
             log.debug("Updating payment state only for order: {}", order.getOrderNumber());
 
-            SagaState sagaState = getSagaState(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
+
+            SagaState sagaState = getSagaState(managedOrder);
             sagaState.setPaymentProcessed(true);
             sagaState.setPaymentTransactionId(transactionId);
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+            sagaStateRepository.save(sagaState);
 
         } catch (Exception e) {
             log.error("Failed to update payment state for order: {}", order.getOrderNumber(), e);
@@ -294,21 +336,26 @@ public class SagaStateService {
     /**
      * Updates only the shipping state.
      * Used primarily for compensation scenarios.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order          The order being processed
      * @param trackingNumber The shipping tracking number
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateShippingState(Order order, String trackingNumber) {
         try {
             log.debug("Updating shipping state only for order: {}", order.getOrderNumber());
 
-            SagaState sagaState = getSagaState(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
+
+            SagaState sagaState = getSagaState(managedOrder);
             sagaState.setShippingArranged(true);
             sagaState.setShippingTransactionId(trackingNumber);
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+            sagaStateRepository.save(sagaState);
 
         } catch (Exception e) {
             log.error("Failed to update shipping state for order: {}", order.getOrderNumber(), e);
@@ -320,21 +367,26 @@ public class SagaStateService {
     /**
      * Updates only the saga step.
      * Used primarily for compensation scenarios.
+     * Uses REQUIRES_NEW to ensure this update commits independently.
      *
      * @param order    The order being processed
      * @param nextStep The next step to transition to
      * @throws SagaStateUpdateException if the update fails
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateSagaStep(Order order, SagaStep nextStep) {
         try {
             log.debug("Updating saga step only for order: {} to: {}", order.getOrderNumber(), nextStep);
 
-            SagaState sagaState = getSagaState(order);
+            // Reload order in this new transaction to avoid detached entity issues
+            Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new SagaStateUpdateException(order.getOrderNumber(),
+                            "Order not found"));
+
+            SagaState sagaState = getSagaState(managedOrder);
             sagaState.setCurrentStep(nextStep);
             sagaState.setStatus(SagaStatus.IN_PROGRESS);
-            order.setSagaState(sagaState);
-            orderRepository.save(order);
+            sagaStateRepository.save(sagaState);
 
         } catch (Exception e) {
             log.error("Failed to update saga step for order: {}", order.getOrderNumber(), e);
