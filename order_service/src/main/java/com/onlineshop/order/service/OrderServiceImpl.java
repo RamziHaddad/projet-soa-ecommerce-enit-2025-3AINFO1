@@ -9,12 +9,12 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.onlineshop.order.config.OrderServiceConfig;
 import com.onlineshop.order.dto.request.OrderRequest;
 import com.onlineshop.order.dto.response.OrderResponse;
 import com.onlineshop.order.exception.OrderNotFoundException;
 import com.onlineshop.order.model.Order;
 import com.onlineshop.order.model.OrderItem;
-import com.onlineshop.order.config.OrderServiceConfig;
 import com.onlineshop.order.model.OrderStatus;
 import com.onlineshop.order.repository.OrderRepository;
 import com.onlineshop.order.saga.SagaOrchestrator;
@@ -39,12 +39,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse createOrder(OrderRequest request) {
         log.info("Creating order for customer: {}", request.getCustomerId());
 
-        Long orderId = createOrderInTransaction(request);
-        startSagaAsync(orderId);
-
-        Order savedOrder = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
-
+        Order savedOrder = createOrderInTransaction(request);
+        startSagaAsync(savedOrder.getId());
         return mapToResponse(savedOrder);
     }
 
@@ -56,7 +52,7 @@ public class OrderServiceImpl implements OrderService {
      * @return The ID of the created order
      */
     @Transactional
-    protected Long createOrderInTransaction(OrderRequest request) {
+    protected Order createOrderInTransaction(OrderRequest request) {
         String orderNumber = generateOrderNumber();
 
         Order order = Order.builder()
@@ -84,8 +80,7 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setTotalAmount(totalAmount);
 
-        Order savedOrder = orderRepository.save(order);
-        return savedOrder.getId();
+        return orderRepository.save(order);
     }
 
     /**
@@ -97,7 +92,7 @@ public class OrderServiceImpl implements OrderService {
      *
      * @param orderId The ID of the order to start the saga for
      */
-    private void startSagaAsync(Long orderId) {
+    private void startSagaAsync(@NonNull Long orderId) {
         try {
             // Fetch the order in a separate context
             Order order = orderRepository.findById(orderId)
