@@ -29,6 +29,16 @@ services:
   shipping:
     url: ${SHIPPING_SERVICE_URL:http://localhost:8083}
 
+# Management & Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,metrics,prometheus}
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:always}
+
 # Feign Configuration
 feign:
   client:
@@ -157,6 +167,8 @@ order:
 
 # Logging Configuration
 logging:
+  file:
+    name: ${LOG_FILE:./logs/order-service.log}
   level:
     com.onlineshop.order: ${LOGGING_LEVEL_ORDER:DEBUG}
     org.springframework.web: ${LOGGING_LEVEL_SPRING_WEB:INFO}
