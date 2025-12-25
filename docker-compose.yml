@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # Recommendation Service
+  recommendation-service:
+    build: .
+    container_name: recommendation-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/ecommerce
+    depends_on:
+      - mongodb
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+networks:
+  ecommerce-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:

@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: recommendation-service
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/ecommerce
+      database: ecommerce
+
+server:
+  port: 8084
+
+# Recommendation scoring weights
+recommendation:
+  scoring:
+    weights:
+      popularity: 0.20
+      rating: 0.25
+      recency: 0.15
+      category-affinity: 0.20
+      collaborative: 0.20
+
+# Logging
+logging:
+  level:
+    com.ecommerce.recommendation: DEBUG
