@@ -29,19 +29,19 @@ public class PaymentResource {
     @POST
     @Path("/process")
     public Response processPayment(OrderPaymentRequest req) {
-        LOG.info("Received order payment request for orderNumber: {}", req.orderNumber);
+        LOG.info("Received order payment request for orderNumber: {}", req.orderNumber());
         try {
             String paymentId = UUID.randomUUID().toString();
-            UUID userUuid = UUID.nameUUIDFromBytes(String.valueOf(req.customerId).getBytes());
+            UUID userUuid = UUID.nameUUIDFromBytes(String.valueOf(req.customerId()).getBytes());
             String cardNumber = "0000000000000000"; // placeholder for non-card methods
 
-            PaymentRequest internal = new PaymentRequest(paymentId, userUuid.toString(), cardNumber, req.amount);
+            PaymentRequest internal = new PaymentRequest(paymentId, userUuid.toString(), cardNumber, req.amount());
             PaymentResponse response = paymentService.processPayment(internal);
 
-            LOG.info("Order payment processed for orderNumber: {} -> paymentId: {} status: {}", req.orderNumber, paymentId, response.status);
+            LOG.info("Order payment processed for orderNumber: {} -> paymentId: {} status: {}", req.orderNumber(), paymentId, response.status());
             return Response.ok(response).build();
         } catch (Exception e) {
-            LOG.error("Error processing order payment for orderNumber: {}", req.orderNumber, e);
+            LOG.error("Error processing order payment for orderNumber: {}", req.orderNumber(), e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .entity(new PaymentResponse(null, "ERROR", "Internal server error"))
                 .build();
@@ -78,15 +78,15 @@ public class PaymentResource {
     @POST
     @Blocking
     public CompletionStage<Response> processPayment(PaymentRequest request) {
-        LOG.info("Received payment request for paymentId: {}", request.paymentId);
+        LOG.info("Received payment request for paymentId: {}", request.paymentId());
 
         try {
             PaymentResponse response = paymentService.processPayment(request);
-            LOG.info("Payment processed for paymentId: {} with status: {}", request.paymentId, response.status);
+            LOG.info("Payment processed for paymentId: {} with status: {}", request.paymentId(), response.status());
             return CompletableFuture.completedFuture(Response.ok(response).build());
         } catch (Exception e) {
-            LOG.error("Error processing payment for paymentId: {}", request.paymentId, e);
-            PaymentResponse errorResponse = new PaymentResponse(request.paymentId, "ERROR", "Internal server error");
+            LOG.error("Error processing payment for paymentId: {}", request.paymentId(), e);
+            PaymentResponse errorResponse = new PaymentResponse(request.paymentId(), "ERROR", "Internal server error");
             return CompletableFuture.completedFuture(Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(errorResponse).build());
         }
     }
@@ -103,7 +103,7 @@ public class PaymentResource {
             PaymentResponse response = paymentService.getPaymentStatus(paymentUUID);
 
             if (response != null) {
-                LOG.info("Payment status retrieved for paymentId: {} - status: {}", paymentId, response.status);
+                LOG.info("Payment status retrieved for paymentId: {} - status: {}", paymentId, response.status());
                 return Response.ok(response).build();
             } else {
                 LOG.warn("Payment not found for paymentId: {}", paymentId);
@@ -188,7 +188,7 @@ public class PaymentResource {
             PaymentResponse response = paymentService.cancelPayment(paymentUUID);
 
             if (response != null) {
-                LOG.info("Payment cancellation processed for paymentId: {} - status: {}", paymentId, response.status);
+                LOG.info("Payment cancellation processed for paymentId: {} - status: {}", paymentId, response.status());
                 return Response.ok(response).build();
             } else {
                 LOG.warn("Payment not found for paymentId: {}", paymentId);

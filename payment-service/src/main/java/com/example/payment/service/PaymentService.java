@@ -33,17 +33,17 @@ public class PaymentService {
     @Retry
     @Timeout
     public PaymentResponse processPayment(PaymentRequest request) {
-        LOG.info("Processing payment for paymentId: {}", request.paymentId);
+        LOG.info("Processing payment for paymentId: {}", request.paymentId());
 
         // Idempotence check
         Paiement existing = Paiement.find("paymentId", request.getPaymentIdAsUUID()).firstResult();
         if (existing != null) {
-            LOG.warn("Payment already exists for paymentId: {}", request.paymentId);
-            return new PaymentResponse(request.paymentId, existing.status, "Payment already processed");
+            LOG.warn("Payment already exists for paymentId: {}", request.paymentId());
+            return new PaymentResponse(request.paymentId(), existing.status, "Payment already processed");
         }
 
         // Create payment entity
-        Paiement paiement = new Paiement(request.getPaymentIdAsUUID(), request.getUserIdAsUUID(), request.cardNumber, request.amount);
+        Paiement paiement = new Paiement(request.getPaymentIdAsUUID(), request.getUserIdAsUUID(), request.cardNumber(), request.amount());
         paiement.previousStep = "INIT";
         paiement.nextStep = "VALIDATE";
 
@@ -55,7 +55,7 @@ public class PaymentService {
             paiement.nextStep = "FAILED";
             paiement.persist();
             publishEvent(paiement, "PAYMENT_FAILED");
-            return new PaymentResponse(request.paymentId, "FAILED", "Validation failed");
+            return new PaymentResponse(request.paymentId(), "FAILED", "Validation failed");
         }
 
         paiement.previousStep = "VALIDATE";
@@ -72,8 +72,8 @@ public class PaymentService {
             // Start saga for coordination
             sagaService.startPaymentSaga(paiement);
             publishEvent(paiement, "PAYMENT_SUCCESS");
-            LOG.info("Payment successful for paymentId: {}", request.paymentId);
-            return new PaymentResponse(request.paymentId, "SUCCESS", "Payment processed successfully");
+            LOG.info("Payment successful for paymentId: {}", request.paymentId());
+            return new PaymentResponse(request.paymentId(), "SUCCESS", "Payment processed successfully");
         } else {
             paiement.status = "FAILED";
             paiement.attempts++;
@@ -81,20 +81,20 @@ public class PaymentService {
             paiement.nextStep = "FAILED";
             paiement.persist();
             publishEvent(paiement, "PAYMENT_FAILED");
-            LOG.warn("Payment failed for paymentId: {}", request.paymentId);
-            return new PaymentResponse(request.paymentId, "FAILED", "Payment processing failed");
+            LOG.warn("Payment failed for paymentId: {}", request.paymentId());
+            return new PaymentResponse(request.paymentId(), "FAILED", "Payment processing failed");
         }
     }
 
     private boolean validatePayment(PaymentRequest request) {
         // Basic validation
-        if (request.userId == null || request.cardNumber == null || request.amount == null) {
+        if (request.userId() == null || request.cardNumber() == null || request.amount() == null) {
             return false;
         }
-        if (request.cardNumber.length() != 16 || !request.cardNumber.matches("\\d+")) {
+        if (request.cardNumber().length() != 16 || !request.cardNumber().matches("\\d+")) {
             return false;
         }
-        if (request.amount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
             return false;
         }
         return true;
@@ -107,7 +107,7 @@ public class PaymentService {
         // Call external bank API via BankClient. If the call fails, fall back to local stochastic simulation.
         try {
             boolean bankSuccess = bankClient.processPayment(request);
-            LOG.info("Bank processing result for paymentId {}: {}", request.paymentId, bankSuccess);
+            LOG.info("Bank processing result for paymentId {}: {}", request.paymentId(), bankSuccess);
             return bankSuccess;
         } catch (Exception e) {
             LOG.warn("Bank client failed, falling back to local simulation", e);

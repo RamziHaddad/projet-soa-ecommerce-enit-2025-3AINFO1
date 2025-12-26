@@ -24,7 +24,7 @@ public class BankClientImpl implements BankClient {
     public boolean processPayment(PaymentRequest request) {
         try {
             String json = String.format("{\"paymentId\":\"%s\",\"userId\":\"%s\",\"cardNumber\":\"%s\",\"amount\":%s}",
-                    request.paymentId, request.userId, request.cardNumber, request.amount);
+                    request.paymentId(), request.userId(), request.cardNumber(), request.amount());
 
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(bankApiUrl))
