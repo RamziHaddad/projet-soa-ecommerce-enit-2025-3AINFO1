@@ -3,7 +3,6 @@ package com.example.payment.service;
 import com.example.payment.dto.PaymentDetails;
 import com.example.payment.dto.PaymentRequest;
 import com.example.payment.dto.PaymentResponse;
-import com.example.payment.entity.Outbox;
 import com.example.payment.entity.Paiement;
 import io.quarkus.panache.common.Parameters;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -12,9 +11,7 @@ import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
 import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.faulttolerance.Timeout;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import jakarta.enterprise.inject.Instance;
+import com.example.payment.client.NotificationClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +25,7 @@ public class PaymentService {
     private static final Logger LOG = LoggerFactory.getLogger(PaymentService.class);
 
     @Inject
-    @Channel("payment-events")
-    Instance<Emitter<String>> eventEmitterInstance;
+    NotificationClient notificationClient;
 
     @Inject
     SagaService sagaService;
@@ -229,16 +225,11 @@ public class PaymentService {
         String payload = String.format("{\"paymentId\":\"%s\",\"userId\":\"%s\",\"amount\":%s,\"status\":\"%s\"}",
                 paiement.paymentId, paiement.userId, paiement.amount, paiement.status);
 
-        // For testing, just log the event instead of using outbox
-        LOG.info("Publishing event: {} - {}", eventType, payload);
-
-        // Publish to Kafka if emitter is available
-        if (eventEmitterInstance.isResolvable()) {
-            Emitter<String> eventEmitter = eventEmitterInstance.get();
-            eventEmitter.send(payload).toCompletableFuture().exceptionally(throwable -> {
-                LOG.error("Failed to send event to Kafka", throwable);
-                return null;
-            });
+        // Send synchronous REST notification (if configured)
+        LOG.info("Sending notification: {} - {}", eventType, payload);
+        boolean sent = notificationClient.sendNotification(payload);
+        if (!sent) {
+            LOG.warn("Notification delivery failed for paymentId: {}", paiement.paymentId);
         }
     }
 }

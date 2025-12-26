@@ -7,7 +7,7 @@ Un microservice de paiement robuste basé sur Quarkus, conçu pour traiter les p
 ### Architecture Microservice
 - **API REST** pour le traitement des paiements
 - **Base de données PostgreSQL** pour la persistance
-- **Kafka** pour la publication d'événements asynchrones
+- **Synchronous REST notifications** to notify other services (configurable endpoint)
 - **RabbitMQ** pour la gestion des commandes
 
 ### Patterns de Résilience
@@ -15,7 +15,7 @@ Un microservice de paiement robuste basé sur Quarkus, conçu pour traiter les p
 - **Retry** : Redémarrage automatique en cas d'échec temporaire
 - **Timeout** : Limitation des temps d'attente
 - **Saga Pattern** : Coordination de transactions distribuées
-- **Outbox Pattern** : Publication fiable d'événements
+
 - **Idempotence** : Traitement sécurisé des requêtes dupliquées
 
 ### Simulation de Paiement
@@ -28,7 +28,7 @@ Un microservice de paiement robuste basé sur Quarkus, conçu pour traiter les p
 - **Java 17+**
 - **Maven 3.8+**
 - **PostgreSQL** (base de données)
-- **Kafka** (optionnel - dev services activés)
+- **Kafka** (removed — synchronous REST notifications are used instead)
 - **RabbitMQ** (optionnel - dev services activés)
 
 ## 🗄️ Configuration Base de Données
@@ -47,6 +47,13 @@ mvn quarkus:dev
 
 L'application démarre sur `http://localhost:8081`.
 
+Configure the notification endpoint (optional):
+
+```properties
+# Where to send payment notifications (leave empty to disable)
+services.order.notify.url=http://localhost:8082/api/orders/payment-notify
+```
+
 ## 📊 Schéma de Base de Données
 
 ### Table `paiements`
@@ -62,15 +69,7 @@ L'application démarre sur `http://localhost:8081`.
 | `next_step` | VARCHAR | Étape suivante |
 | `created_at` | TIMESTAMP | Date de création |
 
-### Table `outbox`
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `event_id` | UUID | Clé primaire |
-| `payment_id` | UUID | Référence paiement |
-| `event_type` | VARCHAR | Type d'événement |
-| `payload` | TEXT | Données JSON de l'événement |
-| `processed` | BOOLEAN | Statut de traitement |
-| `created_at` | TIMESTAMP | Date de création |
+
 
 ## 🔌 API REST
 
@@ -170,21 +169,10 @@ curl -X POST http://localhost:8081/paiement \
 
 **Résultat attendu** : Deuxième appel retourne le même résultat sans retraitement
 
-### 4. Test du Pattern Outbox
+### 4. Test des notifications
 
-```bash
-# Après un paiement réussi, vérifier les logs
-# Les événements sont stockés dans la table outbox et publiés sur Kafka
-```
+Après un paiement réussi, vérifier les logs ou configurer `services.order.notify.url` vers un endpoint de test pour valider la réception des notifications REST.
 
-**Vérification en base :**
-```sql
--- Connexion PostgreSQL
-psql -U payment_user -d payment_db
-
--- Voir les événements outbox
-SELECT event_type, payload FROM outbox ORDER BY created_at DESC LIMIT 5;
-```
 
 ### 5. Tests Automatisés
 
@@ -200,7 +188,7 @@ mvn test -Dtest=PaymentResourceTest
 
 ### Composants Principaux
 
-- **Entities** : `Paiement`, `Outbox` (modèles de données)
+- **Entities** : `Paiement` (modèles de données)
 - **DTOs** : `PaymentRequest`, `PaymentResponse` (objets de transfert)
 - **Services** : `PaymentService` (logique métier), `SagaService` (coordination)
 - **Resource** : `PaymentResource` (couche REST)
@@ -213,15 +201,14 @@ mvn test -Dtest=PaymentResourceTest
 3. Vérification d'idempotence (paymentId unique)
 4. Simulation du traitement bancaire (80% succès)
 5. Coordination via Saga Pattern
-6. Stockage événement Outbox
-7. Publication événement Kafka
-8. Retour réponse HTTP
+6. Notification des événements (REST)
+7. Retour réponse HTTP
 ```
 
 ### Patterns Implémentés
 
 - **Saga Pattern** : Gestion des transactions distribuées
-- **Outbox Pattern** : Fiabilité des événements asynchrones
+
 - **Idempotence** : Sécurité contre les doublons
 - **Circuit Breaker** : Résilience aux pannes
 

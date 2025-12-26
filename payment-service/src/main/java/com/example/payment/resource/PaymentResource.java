@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 
 @Path("/paiement")
 @Produces(MediaType.APPLICATION_JSON)
@@ -110,18 +111,18 @@ public class PaymentResource {
             } else {
                 LOG.warn("Payment not found for paymentId: {}", paymentId);
                 return Response.status(Response.Status.NOT_FOUND)
-                    .entity("Payment not found")
+                    .entity(new PaymentResponse(paymentId, "NOT_FOUND", "Payment not found"))
                     .build();
             }
         } catch (IllegalArgumentException e) {
             LOG.error("Invalid paymentId format: {}", paymentId, e);
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity("Invalid payment ID format")
+                .entity(new PaymentResponse(paymentId, "ERROR", "Invalid payment ID format"))
                 .build();
         } catch (Exception e) {
             LOG.error("Error retrieving payment details for paymentId: {}", paymentId, e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                .entity("Internal server error")
+                .entity(new PaymentResponse(paymentId, "ERROR", "Internal server error"))
                 .build();
         }
     }
