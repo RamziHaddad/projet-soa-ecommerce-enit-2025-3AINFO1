@@ -52,7 +52,7 @@ public class PaymentService {
             LOG.warn("Payment already exists for paymentId: {}", request.paymentId());
             return new PaymentResponse(
                     request.paymentId(),
-                    existing.status,
+                    existing.getStatus(),
                     "Payment already processed"
             );
         }
@@ -65,16 +65,16 @@ public class PaymentService {
                 request.amount()
         );
 
-        paiement.status = "PENDING";
-        paiement.previousStep = "INIT";
-        paiement.nextStep = "VALIDATE";
+        paiement.setStatus("PENDING");
+        paiement.setPreviousStep("INIT");
+        paiement.setNextStep("VALIDATE");
 
         // Validate payment
         if (!validatePayment(request)) {
-            paiement.status = "FAILED";
-            paiement.attempts++;
-            paiement.previousStep = "VALIDATE";
-            paiement.nextStep = "FAILED";
+            paiement.setStatus("FAILED");
+            paiement.setAttempts(paiement.getAttempts() + 1);
+            paiement.setPreviousStep("VALIDATE");
+            paiement.setNextStep("FAILED");
             paiement.persist();
 
             publishEvent(paiement, "PAYMENT_FAILED");
@@ -86,16 +86,16 @@ public class PaymentService {
             );
         }
 
-        paiement.previousStep = "VALIDATE";
-        paiement.nextStep = "PROCESS";
+        paiement.setPreviousStep("VALIDATE");
+        paiement.setNextStep("PROCESS");
 
-        // Call bank synchronously
-        boolean success = simulatePayment(request);
+        // Call external bank synchronously
+        boolean success = bankClient.processPayment(request);
 
         if (success) {
-            paiement.status = "SUCCESS";
-            paiement.previousStep = "PROCESS";
-            paiement.nextStep = "COMPLETED";
+            paiement.setStatus("SUCCESS");
+            paiement.setPreviousStep("PROCESS");
+            paiement.setNextStep("COMPLETED");
             paiement.persist();
 
             publishEvent(paiement, "PAYMENT_SUCCESS");
@@ -110,10 +110,10 @@ public class PaymentService {
         }
 
         // Failure case
-        paiement.status = "FAILED";
-        paiement.attempts++;
-        paiement.previousStep = "PROCESS";
-        paiement.nextStep = "FAILED";
+        paiement.setStatus("FAILED");
+        paiement.setAttempts(paiement.getAttempts() + 1);
+        paiement.setPreviousStep("PROCESS");
+        paiement.setNextStep("FAILED");
         paiement.persist();
 
         publishEvent(paiement, "PAYMENT_FAILED");
@@ -125,6 +125,50 @@ public class PaymentService {
                 "FAILED",
                 "Payment processing failed"
         );
+    }
+
+    // -------------------------------
+    // REFUND PAYMENT
+    // -------------------------------
+    @Transactional
+    public PaymentResponse refundPayment(UUID paymentId) {
+
+        Paiement paiement = Paiement.find("paymentId", paymentId).firstResult();
+
+        if (paiement == null) {
+            LOG.warn("Payment not found for paymentId: {}", paymentId);
+            return new PaymentResponse(paymentId.toString(), "NOT_FOUND", "Payment does not exist");
+        }
+
+        if (!"SUCCESS".equals(paiement.getStatus())) {
+            LOG.warn("Cannot refund payment with status: {}", paiement.getStatus());
+            return new PaymentResponse(paymentId.toString(), paiement.getStatus(),
+                    "Cannot refund payment with status: " + paiement.getStatus());
+        }
+
+        // Call external bank API to refund
+        boolean refunded;
+        try {
+            refunded = bankClient.refundPayment(paiement.getPaymentId(), paiement.getAmount());
+        } catch (Exception e) {
+            LOG.error("Bank refund failed for paymentId {}", paymentId, e);
+            return new PaymentResponse(paymentId.toString(), "FAILED", "Refund failed due to bank error");
+        }
+
+        if (refunded) {
+            paiement.setStatus("REFUNDED");
+            paiement.setPreviousStep(paiement.getNextStep());
+            paiement.setNextStep("REFUNDED");
+            paiement.persist();
+
+            publishEvent(paiement, "PAYMENT_REFUNDED");
+
+            LOG.info("Payment refunded successfully for paymentId: {}", paymentId);
+            return new PaymentResponse(paymentId.toString(), "REFUNDED", "Payment refunded successfully");
+        } else {
+            LOG.warn("Bank refund failed for paymentId {}", paymentId);
+            return new PaymentResponse(paymentId.toString(), "FAILED", "Refund failed");
+        }
     }
 
     // -------------------------------
@@ -146,20 +190,6 @@ public class PaymentService {
     }
 
     // -------------------------------
-    // BANK CALL (BLOCKING)
-    // -------------------------------
-    private boolean simulatePayment(PaymentRequest request) {
-        try {
-            boolean bankSuccess = bankClient.processPayment(request);
-            LOG.info("Bank result for paymentId {}: {}", request.paymentId(), bankSuccess);
-            return bankSuccess;
-        } catch (Exception e) {
-            LOG.warn("Bank client failed, falling back to local simulation", e);
-            return Math.random() > 0.2;
-        }
-    }
-
-    // -------------------------------
     // QUERIES
     // -------------------------------
     public PaymentResponse getPaymentStatus(UUID paymentId) {
@@ -171,16 +201,16 @@ public class PaymentService {
             return null;
         }
 
-        String message = switch (paiement.status) {
+        String message = switch (paiement.getStatus()) {
             case "SUCCESS" -> "Payment completed successfully";
             case "FAILED" -> "Payment failed";
             case "PENDING" -> "Payment is being processed";
-            default -> "Payment status: " + paiement.status;
+            default -> "Payment status: " + paiement.getStatus();
         };
 
         return new PaymentResponse(
-                paiement.paymentId.toString(),
-                paiement.status,
+                paiement.getPaymentId().toString(),
+                paiement.getStatus(),
                 message
         );
     }
@@ -209,15 +239,15 @@ public class PaymentService {
         }
 
         return new PaymentDetails(
-                paiement.paymentId,
-                paiement.userId,
-                paiement.cardNumber,
-                paiement.amount,
-                paiement.status,
-                paiement.attempts,
-                paiement.previousStep,
-                paiement.nextStep,
-                paiement.createdAt
+                paiement.getPaymentId(),
+                paiement.getUserId(),
+                paiement.getCardNumber(),
+                paiement.getAmount(),
+                paiement.getStatus(),
+                paiement.getAttempts(),
+                paiement.getPreviousStep(),
+                paiement.getNextStep(),
+                paiement.getCreatedAt()
         );
     }
 
@@ -233,17 +263,23 @@ public class PaymentService {
             return null;
         }
 
-        if (!"PENDING".equals(paiement.status)) {
+        if (!"PENDING".equals(paiement.getStatus())) {
             return new PaymentResponse(
                     paymentId.toString(),
-                    paiement.status,
-                    "Cannot cancel payment with status: " + paiement.status
+                    paiement.getStatus(),
+                    "Cannot cancel payment with status: " + paiement.getStatus()
             );
         }
 
-        paiement.status = "CANCELLED";
-        paiement.previousStep = paiement.nextStep;
-        paiement.nextStep = "CANCELLED";
+        // Optionally notify bank
+        boolean cancelled = bankClient.cancelPayment(paymentId);
+        if (!cancelled) {
+            LOG.warn("Bank did not cancel payment, proceeding locally for paymentId {}", paymentId);
+        }
+
+        paiement.setStatus("CANCELLED");
+        paiement.setPreviousStep(paiement.getNextStep());
+        paiement.setNextStep("CANCELLED");
         paiement.persist();
 
         publishEvent(paiement, "PAYMENT_CANCELLED");
@@ -270,17 +306,17 @@ public class PaymentService {
 
         String payload = String.format(
                 "{\"paymentId\":\"%s\",\"userId\":\"%s\",\"amount\":%s,\"status\":\"%s\"}",
-                paiement.paymentId,
-                paiement.userId,
-                paiement.amount,
-                paiement.status
+                paiement.getPaymentId(),
+                paiement.getUserId(),
+                paiement.getAmount(),
+                paiement.getStatus()
         );
 
         LOG.info("Sending notification [{}]: {}", eventType, payload);
 
         boolean sent = notificationClient.sendNotification(payload);
         if (!sent) {
-            LOG.warn("Notification delivery failed for paymentId: {}", paiement.paymentId);
+            LOG.warn("Notification delivery failed for paymentId: {}", paiement.getPaymentId());
         }
     }
 }

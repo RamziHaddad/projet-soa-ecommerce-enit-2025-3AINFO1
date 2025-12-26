@@ -7,10 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Map;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -25,55 +21,53 @@ public class BankSimulatorResource {
     @ConfigProperty(name = "payment.webhook.url", defaultValue = "http://localhost:8082/paiement/webhook")
     String paymentWebhookUrl;
 
-    /**
-     * Synchronous bank payment simulation.
-     * The webhook call is blocking.
-     */
+    // -------------------------------
+    // PAY
+    // -------------------------------
     @POST
     @Path("/pay")
     public Response pay(Map<String, Object> payload) {
-
-        LOG.info("BankSimulator received payload: {}", payload);
+        LOG.info("BankSimulator received payment payload: {}", payload);
 
         String cardNumber = payload.getOrDefault("cardNumber", "").toString();
         BigDecimal amount = new BigDecimal(payload.getOrDefault("amount", "0").toString());
 
-        boolean success;
-        if (cardNumber.endsWith("0000") || amount.compareTo(new BigDecimal("10000")) > 0) {
-            success = false;
-        } else {
-            success = Math.random() > 0.2; // 80% success
-        }
+        boolean success = !cardNumber.endsWith("0000") && amount.compareTo(new BigDecimal("10000")) <= 0
+                && Math.random() > 0.2; // 80% success
 
-        String status = success ? "SUCCESS" : "FAILED";
+        return Response.ok(Map.of("status", success ? "SUCCESS" : "FAILED")).build();
+    }
 
-        try {
-            HttpClient client = HttpClient.newHttpClient();
+    // -------------------------------
+    // REFUND
+    // -------------------------------
+    @POST
+    @Path("/refund")
+    public Response refund(Map<String, Object> payload) {
+        LOG.info("BankSimulator received refund payload: {}", payload);
 
-            String webhookPayload = String.format(
-                    "{\"paymentId\":\"%s\",\"status\":\"%s\"}",
-                    payload.getOrDefault("paymentId", ""),
-                    status
-            );
+        String paymentId = payload.getOrDefault("paymentId", "").toString();
+        BigDecimal amount = new BigDecimal(payload.getOrDefault("amount", "0").toString());
 
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(paymentWebhookUrl))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(webhookPayload))
-                    .build();
+        // Example rule: refund succeeds if amount > 0
+        boolean success = amount.compareTo(BigDecimal.ZERO) > 0;
 
-            HttpResponse<String> resp =
-                    client.send(req, HttpResponse.BodyHandlers.ofString());
+        return Response.ok(Map.of("status", success ? "SUCCESS" : "FAILED")).build();
+    }
 
-            LOG.info("Webhook POST returned {}: {}", resp.statusCode(), resp.body());
+    // -------------------------------
+    // CANCEL
+    // -------------------------------
+    @POST
+    @Path("/cancel")
+    public Response cancel(Map<String, Object> payload) {
+        LOG.info("BankSimulator received cancel request: {}", payload);
 
-        } catch (Exception e) {
-            LOG.error("Webhook call failed", e);
-            return Response.status(Response.Status.BAD_GATEWAY)
-                    .entity(Map.of("status", "FAILED", "reason", "Webhook error"))
-                    .build();
-        }
+        String paymentId = payload.getOrDefault("paymentId", "").toString();
 
-        return Response.ok(Map.of("status", status)).build();
+        // Example rule: always allow cancellation if paymentId is not empty
+        boolean success = !paymentId.isEmpty();
+
+        return Response.ok(Map.of("status", success ? "SUCCESS" : "FAILED")).build();
     }
 }
