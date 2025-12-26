@@ -159,7 +159,7 @@ if (inventoryResponse != null && inventoryResponse.isSuccess()) {
         log.info("Completing order: {}", order.getOrderNumber());
 
         try {
-            
+            orderServiceCommunication.confirmInventoryReservation(order.getOrderNumber());
             sagaStateService.completeOrderAndSaga(order);
             log.info("Order completed successfully: {}", order.getOrderNumber());
         } catch (Exception e) {

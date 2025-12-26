@@ -321,4 +321,10 @@ private InventoryResponse createOverloadInventoryResponse(String message) {
                 event.getStateTransition().getToState(),
                 event.getCreationTime());
     }
+
+    @Override
+    public void confirmInventoryReservation(String orderNumber) {
+        log.info("Confirming inventory reservation for order: {}", orderNumber);
+        inventoryClient.confirmReservation(orderNumber);
+    }
 }

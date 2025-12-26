@@ -90,7 +90,7 @@ if (refundResponse != null && refundResponse.getSuccess()) {
                 var cancelResponse = communicationStrategy.cancelShipping(
                         sagaState.getShippingTransactionId());
 
-if (cancelResponse != null && cancelResponse.getSuccess()) {
+                if (cancelResponse != null && cancelResponse.getSuccess()) {
                     // Reset shipping state using individual transaction for partial recovery
                     sagaState.setShippingArranged(false);
                     sagaState.setShippingTransactionId(null);

@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:8082
-@orderId =  ORD-20251226170037-885
+@orderId = ORD-20251226203604-714
 @productId = PROD-001
 
 ### Reserve inventory for an order

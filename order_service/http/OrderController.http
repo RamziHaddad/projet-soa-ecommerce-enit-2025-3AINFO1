@@ -20,11 +20,11 @@ Accept: application/json
 }
 
 ### Get order by id
-GET {{baseUrl}}/api/orders/8
+GET {{baseUrl}}/api/orders/12
 Accept: application/json
 
 ### Get order by number
-GET {{baseUrl}}/api/orders/number/ORD-20251226162458-927
+GET {{baseUrl}}/api/orders/number/ORD-20251226203604-714
 Accept: application/json
 
 ### Get orders by customer id
@@ -46,7 +46,7 @@ Accept: application/json
 {
   "customerId": 456,
   "items": [
-    { "productId": "PROD-001", "quantity": 1, "unitPrice": 19.99 }
+    { "productId": "PROD-001", "quantity": 1, "unitPrice": 1299.99 }
   ],
   "shippingAddress": "2 Example Ave, Testville, 12345, TN",
   "payment": {
@@ -58,5 +58,5 @@ Accept: application/json
 
 
 ### 2. Cancel the order (simulate cancellation)
-DELETE {{baseUrl}}/api/orders/66
+DELETE {{baseUrl}}/api/orders/11
 Accept: application/json
