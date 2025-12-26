@@ -12,7 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class InventoryRequest {
-    
-    private String orderNumber;
+
+    private String orderId;
     private List<InventoryItemRequest> items;
 }

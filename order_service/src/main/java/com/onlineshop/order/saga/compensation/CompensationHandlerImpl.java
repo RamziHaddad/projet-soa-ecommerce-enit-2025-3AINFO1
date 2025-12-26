@@ -36,7 +36,7 @@ public class CompensationHandlerImpl implements CompensationHandler {
                 var releaseResponse = communicationStrategy.releaseInventory(
                         sagaState.getInventoryTransactionId());
 
-                if (releaseResponse != null && Boolean.TRUE.equals(releaseResponse.getSuccess())) {
+if (releaseResponse != null && releaseResponse.isSuccess()) {
                     // Reset inventory state using individual transaction for partial recovery
                     sagaState.setInventoryReserved(false);
                     sagaState.setInventoryTransactionId(null);
@@ -63,7 +63,7 @@ public class CompensationHandlerImpl implements CompensationHandler {
                 var refundResponse = communicationStrategy.refundPayment(
                         sagaState.getPaymentTransactionId());
 
-                if (refundResponse != null && Boolean.TRUE.equals(refundResponse.getSuccess())) {
+if (refundResponse != null && refundResponse.getSuccess()) {
                     // Reset payment state using individual transaction for partial recovery
                     sagaState.setPaymentProcessed(false);
                     sagaState.setPaymentTransactionId(null);
@@ -90,7 +90,7 @@ public class CompensationHandlerImpl implements CompensationHandler {
                 var cancelResponse = communicationStrategy.cancelShipping(
                         sagaState.getShippingTransactionId());
 
-                if (cancelResponse != null && Boolean.TRUE.equals(cancelResponse.getSuccess())) {
+if (cancelResponse != null && cancelResponse.getSuccess()) {
                     // Reset shipping state using individual transaction for partial recovery
                     sagaState.setShippingArranged(false);
                     sagaState.setShippingTransactionId(null);

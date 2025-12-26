@@ -48,19 +48,19 @@ public class RestCommunicationStrategy implements OrderProcessingCommunicationHa
     @Retry(name = "inventoryService")
     @Bulkhead(name = "inventoryService")
     public InventoryResponse reserveInventory(InventoryRequest request) {
-        log.info("Reserving inventory for order: {}", request.getOrderNumber());
+log.info("Reserving inventory for order: {}", request.getOrderId());
 
         try {
-            var response = inventoryClient.reserveInventory(request);
-            log.info("Inventory reservation response for order {}: {}", request.getOrderNumber(), response);
-            return response;
+var response = inventoryClient.reserveInventory(request);
+log.info("Inventory reservation response for order {}: {}", request.getOrderId(), response);
+return response;
         } catch (RequestNotPermitted | BulkheadFullException e) {
-            log.warn("Inventory service rejected due to rate/bulkhead limit for order: {}", request.getOrderNumber(),
-                    e);
+log.warn("Inventory service rejected due to rate/bulkhead limit for order: {}", request.getOrderId(),
+        e);
             return createOverloadInventoryResponse("Inventory service busy - please retry later");
         } catch (Exception e) {
-            log.error("Unexpected error during inventory reservation for order: {}", request.getOrderNumber(), e);
-            throw e; // Let CircuitBreaker/Retry handle real failures
+log.error("Unexpected error during inventory reservation for order: {}", request.getOrderId(), e);
+throw e; // Let CircuitBreaker/Retry handle real failures
         }
     }
 
@@ -68,18 +68,22 @@ public class RestCommunicationStrategy implements OrderProcessingCommunicationHa
     @CircuitBreaker(name = "inventoryService", fallbackMethod = "fallbackReleaseInventory")
     @Retry(name = "inventoryService")
     @Bulkhead(name = "inventoryService")
-    public InventoryResponse releaseInventory(String transactionId) {
-        log.info("Releasing inventory for transaction: {}", transactionId);
+public InventoryResponse releaseInventory(String orderId) {
+        log.info("Cancelling inventory reservation for order: {}", orderId);
 
         try {
-            var response = inventoryClient.releaseInventory(transactionId);
-            log.info("Inventory release response for transaction {}: {}", transactionId, response);
-            return response;
+            inventoryClient.cancelReservation(orderId);
+            log.info("Inventory reservation cancelled for order: {}", orderId);
+            return InventoryResponse.builder()
+                    .success(true)
+                    .orderId(orderId)
+                    .message("Inventory reservation cancelled successfully")
+                    .build();
         } catch (RequestNotPermitted | BulkheadFullException e) {
-            log.warn("Inventory release rejected due to rate/bulkhead limit for transaction: {}", transactionId, e);
-            return createOverloadInventoryResponse("Failed to release inventory – system busy, will retry");
+            log.warn("Inventory cancellation rejected due to rate/bulkhead limit for order: {}", orderId, e);
+            return createOverloadInventoryResponse("Failed to cancel inventory reservation – system busy, will retry");
         } catch (Exception e) {
-            log.error("Unexpected error during inventory release for transaction: {}", transactionId, e);
+            log.error("Unexpected error during inventory cancellation for order: {}", orderId, e);
             throw e;
         }
     }
@@ -172,30 +176,26 @@ public class RestCommunicationStrategy implements OrderProcessingCommunicationHa
 
     public InventoryResponse fallbackReserveInventory(InventoryRequest request, Exception ex) {
         String metrics = getCircuitBreakerMetrics("inventoryService");
-        log.warn("Circuit breaker triggered for inventory reservation. Order: {}. Metrics: {}",
-                request.getOrderNumber(), metrics);
+log.warn("Circuit breaker triggered for inventory reservation. Order: {}. Metrics: {}",
+        request.getOrderId(), metrics);
 
         boolean retryable = shouldRetryLater(ex);
         String message = retryable
                 ? "Inventory service temporarily unavailable - please retry later"
                 : "Inventory service failed: " + ex.getMessage();
 
-        return InventoryResponse.builder()
+return InventoryResponse.builder()
                 .success(false)
                 .message(message)
-                .retryable(retryable)
-                .timestamp(LocalDateTime.now())
                 .build();
     }
 
     public InventoryResponse fallbackReleaseInventory(String transactionId, Exception ex) {
         log.warn("Circuit breaker triggered for inventory release. Transaction: {}. Will retry. Error: {}",
                 transactionId, ex.getMessage());
-        return InventoryResponse.builder()
+return InventoryResponse.builder()
                 .success(false)
                 .message("Failed to release inventory – will retry compensation")
-                .retryable(true)
-                .timestamp(LocalDateTime.now())
                 .build();
     }
 
@@ -259,12 +259,10 @@ public class RestCommunicationStrategy implements OrderProcessingCommunicationHa
 
     // ====== HELPERS ======
 
-    private InventoryResponse createOverloadInventoryResponse(String message) {
+private InventoryResponse createOverloadInventoryResponse(String message) {
         return InventoryResponse.builder()
                 .success(false)
                 .message(message)
-                .retryable(true)
-                .timestamp(LocalDateTime.now())
                 .build();
     }
 

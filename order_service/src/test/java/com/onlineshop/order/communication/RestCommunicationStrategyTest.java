@@ -53,8 +53,8 @@ class RestCommunicationStrategyTest {
                                 .quantity(2)
                                 .build();
 
-                inventoryRequest = InventoryRequest.builder()
-                                .orderNumber("ORD-2025-001")
+inventoryRequest = InventoryRequest.builder()
+                                .orderId("ORD-2025-001")
                                 .items(Arrays.asList(inventoryItem))
                                 .build();
 
@@ -71,9 +71,9 @@ class RestCommunicationStrategyTest {
                                 .shippingAddress("123 Main St, City, State 12345")
                                 .build();
 
-                inventoryResponse = InventoryResponse.builder()
+inventoryResponse = InventoryResponse.builder()
                                 .success(true)
-                                .transactionId("INV-TXN-001")
+                                .orderId("INV-TXN-001")
                                 .message("Inventory reserved successfully")
                                 .build();
 
@@ -99,27 +99,28 @@ class RestCommunicationStrategyTest {
                 InventoryResponse result = restCommunicationStrategy.reserveInventory(inventoryRequest);
 
                 assertNotNull(result);
-                assertTrue(result.getSuccess());
-                assertEquals("INV-TXN-001", result.getTransactionId());
+assertTrue(result.isSuccess());
+assertEquals("INV-TXN-001", result.getOrderId());
                 assertEquals("Inventory reserved successfully", result.getMessage());
 
                 verify(inventoryServiceClient, times(1)).reserveInventory(inventoryRequest);
         }
 
-        @Test
-        void testReleaseInventory() {
+@Test
+void testReleaseInventory() {
 
-                String transactionId = "INV-TXN-001";
-                when(inventoryServiceClient.releaseInventory(transactionId)).thenReturn(inventoryResponse);
+        String orderId = "ORD-2025-001";
+        doNothing().when(inventoryServiceClient).cancelReservation(orderId);
 
-                InventoryResponse result = restCommunicationStrategy.releaseInventory(transactionId);
+        InventoryResponse result = restCommunicationStrategy.releaseInventory(orderId);
 
-                assertNotNull(result);
-                assertTrue(result.getSuccess());
-                assertEquals("INV-TXN-001", result.getTransactionId());
+        assertNotNull(result);
+        assertTrue(result.isSuccess());
+        assertEquals(orderId, result.getOrderId());
+        assertEquals("Inventory reservation cancelled successfully", result.getMessage());
 
-                verify(inventoryServiceClient, times(1)).releaseInventory(transactionId);
-        }
+        verify(inventoryServiceClient, times(1)).cancelReservation(orderId);
+}
 
         @Test
         void testProcessPayment() {
@@ -191,7 +192,7 @@ class RestCommunicationStrategyTest {
                 InventoryResponse result = restCommunicationStrategy.reserveInventory(inventoryRequest);
 
                 assertNotNull(result);
-                assertFalse(result.getSuccess());
+assertFalse(result.isSuccess());
                 assertTrue(result.getMessage().toLowerCase().contains("inventory service temporarily unavailable"));
         }
 
@@ -205,7 +206,7 @@ class RestCommunicationStrategyTest {
                 InventoryResponse result = restCommunicationStrategy.reserveInventory(inventoryRequest);
 
                 assertNotNull(result);
-                assertFalse(result.getSuccess());
+assertFalse(result.isSuccess());
                 assertTrue(result.getMessage().toLowerCase().contains("inventory service temporarily unavailable"));
         }
 

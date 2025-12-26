@@ -59,15 +59,15 @@ public class SagaStepExecutor {
             var inventoryRequest = requestMapperService.mapToInventoryRequest(order);
             var inventoryResponse = orderServiceCommunication.reserveInventory(inventoryRequest);
 
-            if (inventoryResponse != null && Boolean.TRUE.equals(inventoryResponse.getSuccess())) {
+if (inventoryResponse != null && inventoryResponse.isSuccess()) {
                 sagaStateService.updateInventoryStateAndProceed(order,
-                        inventoryResponse.getTransactionId(),
+                        inventoryResponse.getOrderId(),
                         SagaStep.PAYMENT_PROCESSING);
 
                 // Trigger next step asynchronously
                 executePaymentStep(orderId);
             } else {
-                handleStepFailure(order, inventoryResponse != null ? inventoryResponse.getRetryable() : false,
+                handleStepFailure(order, false,
                         new InventoryReservationException("Inventory reservation failed: " +
                                 (inventoryResponse != null ? inventoryResponse.getMessage() : GENERAL_ERROR_MESSAGE)));
             }
@@ -159,6 +159,7 @@ public class SagaStepExecutor {
         log.info("Completing order: {}", order.getOrderNumber());
 
         try {
+            
             sagaStateService.completeOrderAndSaga(order);
             log.info("Order completed successfully: {}", order.getOrderNumber());
         } catch (Exception e) {

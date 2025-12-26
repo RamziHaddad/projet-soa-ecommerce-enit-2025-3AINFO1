@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:8082
+@orderId =  ORD-20251226170037-885
+@productId = PROD-001
+
+### Reserve inventory for an order
+POST {{baseUrl}}/inventory/reservations
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}",
+  "items": [
+    {
+      "productId": "{{productId}}",
+      "quantity": 1
+    }
+  ]
+}
+
+###
+
+### Cancel reservation for an order
+POST {{baseUrl}}/inventory/reservations/{{orderId}}/cancel
+
+###
+
+### Confirm reservation for an order
+POST {{baseUrl}}/inventory/reservations/{{orderId}}/confirm
+
+###
+
+### Get inventory for a product
+GET {{baseUrl}}/inventory/{{productId}}
+
+###
+
+### Get reservation status by orderId
+GET {{baseUrl}}/inventory/reservations/{{orderId}}
+
+###
+
+### List all inventory items
+GET {{baseUrl}}/inventory
+
+###
+### --- EXAMPLES: Test reservation and cancellation status ---
+
+### 3. Check reservation status after reservation
+GET {{baseUrl}}/inventory/reservations/{{orderId}}
+
+###
+### 4. Check reservation status after cancellation
+POST {{baseUrl}}/inventory/reservations/{{orderId}}/cancel
+

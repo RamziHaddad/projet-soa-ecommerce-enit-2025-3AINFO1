@@ -30,7 +30,7 @@ public class RequestMapperService {
         log.debug("Mapping order {} to inventory request", order.getOrderNumber());
 
         return InventoryRequest.builder()
-                .orderNumber(order.getOrderNumber())
+.orderId(order.getOrderNumber())
                 .items(order.getItems().stream()
                         .map(item -> InventoryItemRequest.builder()
                                 .productId(item.getProductId())

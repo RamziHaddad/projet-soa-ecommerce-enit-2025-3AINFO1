@@ -60,7 +60,7 @@ public class OrderServiceImpl implements OrderService {
         String orderNumber = generateOrderNumber();
 
         Order order = Order.builder()
-                .orderNumber(orderNumber)
+.orderNumber(orderNumber)
                 .customerId(request.getCustomerId())
                 .status(OrderStatus.PROCESSING)
                 .shippingAddress(request.getShippingAddress())
@@ -193,7 +193,7 @@ public class OrderServiceImpl implements OrderService {
     private OrderResponse mapToResponse(Order order) {
         return OrderResponse.builder()
                 .id(order.getId())
-                .orderNumber(order.getOrderNumber())
+.orderNumber(order.getOrderNumber())
                 .customerId(order.getCustomerId())
                 .status(order.getStatus())
                 .totalAmount(order.getTotalAmount())

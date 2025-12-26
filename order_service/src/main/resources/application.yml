@@ -18,14 +18,14 @@ spring:
 
 # Server Configuration
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:9000}
 
 # External Services Configuration
 services:
-  inventory:
-    url: ${INVENTORY_SERVICE_URL:http://localhost:8081}
   payment:
-    url: ${PAYMENT_SERVICE_URL:http://localhost:8082}
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8080}
+  inventory:
+    url: ${INVENTORY_SERVICE_URL:http://localhost:8082}
   shipping:
     url: ${SHIPPING_SERVICE_URL:http://localhost:8083}
 

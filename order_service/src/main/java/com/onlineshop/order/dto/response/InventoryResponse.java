@@ -13,9 +13,19 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class InventoryResponse {
 
-    private Boolean success;
-    private String transactionId;
+    private boolean success;
+    private String orderId;
     private String message;
-    private Boolean retryable;
-    private LocalDateTime timestamp;
+    private java.util.List<ItemReservation> items;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ItemReservation {
+        private String reservationId;
+        private String productId;
+        private Integer quantity;
+        private String status;
+    }
 }
