@@ -73,7 +73,7 @@ services.order.notify.url=http://localhost:8082/api/orders/payment-notify
 
 ## 🔌 API REST
 
-### Traitement d'un Paiement
+### Traitement d'un Paiement (internal)
 
 ```bash
 POST /paiement
@@ -95,6 +95,31 @@ Content-Type: application/json
   "message": "Payment processed successfully"
 }
 ```
+
+### Compatibility endpoints for order-service
+
+Order service expects a different payload shape; a compatibility endpoint is available:
+
+```bash
+POST /api/payment/process
+Content-Type: application/json
+
+{
+  "orderNumber": "ORD-123",
+  "customerId": 123,
+  "amount": 50.00,
+  "paymentMethod": "CARD"
+}
+```
+
+This will be mapped to an internal payment and processed (a paymentId UUID will be generated). Note: `customerId` (Long) is deterministically converted to an internal `userId` UUID using a name-based UUID to allow correlation between services.
+
+Refund endpoint:
+
+```bash
+POST /api/payment/refund/{transactionId}
+```
+
 
 ## 🧪 Tests Fonctionnels
 

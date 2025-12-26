@@ -1,6 +1,6 @@
 package com.example.payment.resource;
 
-import com.example.payment.dto.PaymentDetails;
+import com.example.payment.dto.OrderPaymentRequest;
 import com.example.payment.dto.PaymentRequest;
 import com.example.payment.dto.PaymentResponse;
 import com.example.payment.service.PaymentService;
@@ -16,7 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
 
-@Path("/paiement")
+@Path("/api/payment")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class PaymentResource {
@@ -25,6 +25,55 @@ public class PaymentResource {
 
     @Inject
     PaymentService paymentService;
+
+    @POST
+    @Path("/process")
+    public Response processPayment(OrderPaymentRequest req) {
+        LOG.info("Received order payment request for orderNumber: {}", req.orderNumber);
+        try {
+            String paymentId = UUID.randomUUID().toString();
+            UUID userUuid = UUID.nameUUIDFromBytes(String.valueOf(req.customerId).getBytes());
+            String cardNumber = "0000000000000000"; // placeholder for non-card methods
+
+            PaymentRequest internal = new PaymentRequest(paymentId, userUuid.toString(), cardNumber, req.amount);
+            PaymentResponse response = paymentService.processPayment(internal);
+
+            LOG.info("Order payment processed for orderNumber: {} -> paymentId: {} status: {}", req.orderNumber, paymentId, response.status);
+            return Response.ok(response).build();
+        } catch (Exception e) {
+            LOG.error("Error processing order payment for orderNumber: {}", req.orderNumber, e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new PaymentResponse(null, "ERROR", "Internal server error"))
+                .build();
+        }
+    }
+
+    @POST
+    @Path("/refund/{transactionId}")
+    public Response refundPayment(@PathParam("transactionId") String transactionId) {
+        LOG.info("Received refund request for transactionId: {}", transactionId);
+        try {
+            UUID tx = UUID.fromString(transactionId);
+            PaymentResponse response = paymentService.cancelPayment(tx);
+            if (response != null) {
+                return Response.ok(response).build();
+            } else {
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new PaymentResponse(transactionId, "NOT_FOUND", "Payment not found"))
+                    .build();
+            }
+        } catch (IllegalArgumentException e) {
+            LOG.error("Invalid transactionId format: {}", transactionId, e);
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(new PaymentResponse(transactionId, "ERROR", "Invalid transaction ID format"))
+                .build();
+        } catch (Exception e) {
+            LOG.error("Error processing refund for transactionId: {}", transactionId, e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new PaymentResponse(transactionId, "ERROR", "Internal server error"))
+                .build();
+        }
+    }
 
     @POST
     @Blocking
@@ -41,6 +90,8 @@ public class PaymentResource {
             return CompletableFuture.completedFuture(Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(errorResponse).build());
         }
     }
+
+
 
     @GET
     @Path("/{paymentId}")
