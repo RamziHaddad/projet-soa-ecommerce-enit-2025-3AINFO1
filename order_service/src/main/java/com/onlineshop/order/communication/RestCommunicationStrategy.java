@@ -1,6 +1,7 @@
 package com.onlineshop.order.communication;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import com.onlineshop.order.client.ShippingServiceClient;
 import com.onlineshop.order.dto.request.InventoryRequest;
 import com.onlineshop.order.dto.request.PaymentRequest;
 import com.onlineshop.order.dto.request.ShippingRequest;
+import com.onlineshop.order.dto.response.DeliveryResponse;
 import com.onlineshop.order.dto.response.InventoryResponse;
 import com.onlineshop.order.dto.response.PaymentResponse;
 import com.onlineshop.order.dto.response.ShippingResponse;
@@ -48,19 +50,19 @@ public class RestCommunicationStrategy implements OrderProcessingCommunicationHa
     @Retry(name = "inventoryService")
     @Bulkhead(name = "inventoryService")
     public InventoryResponse reserveInventory(InventoryRequest request) {
-log.info("Reserving inventory for order: {}", request.getOrderId());
+        log.info("Reserving inventory for order: {}", request.orderId());
 
         try {
-var response = inventoryClient.reserveInventory(request);
-log.info("Inventory reservation response for order {}: {}", request.getOrderId(), response);
-return response;
+            var response = inventoryClient.reserveInventory(request);
+            log.info("Inventory reservation response for order {}: {}", request.orderId(), response);
+            return response;
         } catch (RequestNotPermitted | BulkheadFullException e) {
-log.warn("Inventory service rejected due to rate/bulkhead limit for order: {}", request.getOrderId(),
-        e);
+            log.warn("Inventory service rejected due to rate/bulkhead limit for order: {}", request.orderId(),
+                    e);
             return createOverloadInventoryResponse("Inventory service busy - please retry later");
         } catch (Exception e) {
-log.error("Unexpected error during inventory reservation for order: {}", request.getOrderId(), e);
-throw e; // Let CircuitBreaker/Retry handle real failures
+            log.error("Unexpected error during inventory reservation for order: {}", request.orderId(), e);
+            throw e;
         }
     }
 
@@ -68,17 +70,13 @@ throw e; // Let CircuitBreaker/Retry handle real failures
     @CircuitBreaker(name = "inventoryService", fallbackMethod = "fallbackReleaseInventory")
     @Retry(name = "inventoryService")
     @Bulkhead(name = "inventoryService")
-public InventoryResponse releaseInventory(String orderId) {
+    public InventoryResponse releaseInventory(String orderId) {
         log.info("Cancelling inventory reservation for order: {}", orderId);
 
         try {
             inventoryClient.cancelReservation(orderId);
             log.info("Inventory reservation cancelled for order: {}", orderId);
-            return InventoryResponse.builder()
-                    .success(true)
-                    .orderId(orderId)
-                    .message("Inventory reservation cancelled successfully")
-                    .build();
+            return new InventoryResponse(true, orderId, "Inventory reservation cancelled successfully", List.of());
         } catch (RequestNotPermitted | BulkheadFullException e) {
             log.warn("Inventory cancellation rejected due to rate/bulkhead limit for order: {}", orderId, e);
             return createOverloadInventoryResponse("Failed to cancel inventory reservation – system busy, will retry");
@@ -95,17 +93,17 @@ public InventoryResponse releaseInventory(String orderId) {
     @Retry(name = "paymentService")
     @Bulkhead(name = "paymentService")
     public PaymentResponse processPayment(PaymentRequest request) {
-        log.info("Processing payment for order: {}", request.getOrderNumber());
+        log.info("Processing payment for order: {}", request.orderNumber());
 
         try {
             var response = paymentClient.processPayment(request);
-            log.info("Payment processing response for order {}: {}", request.getOrderNumber(), response);
+            log.info("Payment processing response for order {}: {}", request.orderNumber(), response);
             return response;
         } catch (RequestNotPermitted | BulkheadFullException e) {
-            log.warn("Payment service rejected due to rate/bulkhead limit for order: {}", request.getOrderNumber(), e);
+            log.warn("Payment service rejected due to rate/bulkhead limit for order: {}", request.orderNumber(), e);
             return createOverloadPaymentResponse("Payment service busy - please retry later");
         } catch (Exception e) {
-            log.error("Unexpected error during payment processing for order: {}", request.getOrderNumber(), e);
+            log.error("Unexpected error during payment processing for order: {}", request.orderNumber(), e);
             throw e;
         }
     }
@@ -137,17 +135,17 @@ public InventoryResponse releaseInventory(String orderId) {
     @Retry(name = "shippingService")
     @Bulkhead(name = "shippingService")
     public ShippingResponse arrangeShipping(ShippingRequest request) {
-        log.info("Arranging shipping for order: {}", request.getOrderNumber());
+        log.info("Arranging shipping for order: {}", request.orderNumber());
 
         try {
             var response = shippingClient.arrangeShipping(request);
-            log.info("Shipping arrangement response for order {}: {}", request.getOrderNumber(), response);
-            return response;
+            log.info("Shipping arrangement response for order {}: {}", request.orderNumber(), response);
+            return shippingResponseMapper(response);
         } catch (RequestNotPermitted | BulkheadFullException e) {
-            log.warn("Shipping service rejected due to rate/bulkhead limit for order: {}", request.getOrderNumber(), e);
+            log.warn("Shipping service rejected due to rate/bulkhead limit for order: {}", request.orderNumber(), e);
             return createOverloadShippingResponse("Shipping service busy - please retry later");
         } catch (Exception e) {
-            log.error("Unexpected error during shipping arrangement for order: {}", request.getOrderNumber(), e);
+            log.error("Unexpected error during shipping arrangement for order: {}", request.orderNumber(), e);
             throw e;
         }
     }
@@ -176,32 +174,26 @@ public InventoryResponse releaseInventory(String orderId) {
 
     public InventoryResponse fallbackReserveInventory(InventoryRequest request, Exception ex) {
         String metrics = getCircuitBreakerMetrics("inventoryService");
-log.warn("Circuit breaker triggered for inventory reservation. Order: {}. Metrics: {}",
-        request.getOrderId(), metrics);
+        log.warn("Circuit breaker triggered for inventory reservation. Order: {}. Metrics: {}",
+                request.orderId(), metrics);
 
         boolean retryable = shouldRetryLater(ex);
         String message = retryable
                 ? "Inventory service temporarily unavailable - please retry later"
                 : "Inventory service failed: " + ex.getMessage();
 
-return InventoryResponse.builder()
-                .success(false)
-                .message(message)
-                .build();
+        return new InventoryResponse(false, null, message, List.of());
     }
 
     public InventoryResponse fallbackReleaseInventory(String transactionId, Exception ex) {
         log.warn("Circuit breaker triggered for inventory release. Transaction: {}. Will retry. Error: {}",
                 transactionId, ex.getMessage());
-return InventoryResponse.builder()
-                .success(false)
-                .message("Failed to release inventory – will retry compensation")
-                .build();
+        return new InventoryResponse(false, null, "Failed to release inventory – will retry compensation", List.of());
     }
 
     public PaymentResponse fallbackProcessPayment(PaymentRequest request, Exception ex) {
         String metrics = getCircuitBreakerMetrics("paymentService");
-        log.warn("Circuit breaker triggered for payment processing. Order: {}. Metrics: {}", request.getOrderNumber(),
+        log.warn("Circuit breaker triggered for payment processing. Order: {}. Metrics: {}", request.orderNumber(),
                 metrics);
 
         boolean retryable = shouldRetryLater(ex);
@@ -209,28 +201,19 @@ return InventoryResponse.builder()
                 ? "Payment service temporarily unavailable - please retry later"
                 : "Payment processing failed: " + ex.getMessage();
 
-        return PaymentResponse.builder()
-                .success(false)
-                .message(message)
-                .retryable(retryable)
-                .timestamp(LocalDateTime.now())
-                .build();
+        return new PaymentResponse(false, null, message, retryable, LocalDateTime.now());
     }
 
     public PaymentResponse fallbackRefundPayment(String transactionId, Exception ex) {
         log.warn("Circuit breaker triggered for payment refund. Transaction: {}. Will retry. Error: {}",
                 transactionId, ex.getMessage());
-        return PaymentResponse.builder()
-                .success(false)
-                .message("Failed to refund payment – will retry compensation")
-                .retryable(true)
-                .timestamp(LocalDateTime.now())
-                .build();
+        return new PaymentResponse(false, null, "Failed to refund payment – will retry compensation", true,
+                LocalDateTime.now());
     }
 
     public ShippingResponse fallbackArrangeShipping(ShippingRequest request, Exception ex) {
         String metrics = getCircuitBreakerMetrics("shippingService");
-        log.warn("Circuit breaker triggered for shipping arrangement. Order: {}. Metrics: {}", request.getOrderNumber(),
+        log.warn("Circuit breaker triggered for shipping arrangement. Order: {}. Metrics: {}", request.orderNumber(),
                 metrics);
 
         boolean retryable = shouldRetryLater(ex);
@@ -238,50 +221,28 @@ return InventoryResponse.builder()
                 ? "Shipping service temporarily unavailable - please retry later"
                 : "Shipping arrangement failed: " + ex.getMessage();
 
-        return ShippingResponse.builder()
-                .success(false)
-                .message(message)
-                .retryable(retryable)
-                .timestamp(LocalDateTime.now())
-                .build();
+        return new ShippingResponse(false, null, message, retryable, LocalDateTime.now());
     }
 
     public ShippingResponse fallbackCancelShipping(String trackingNumber, Exception ex) {
         log.warn("Circuit breaker triggered for shipping cancellation. Tracking: {}. Will retry. Error: {}",
                 trackingNumber, ex.getMessage());
-        return ShippingResponse.builder()
-                .success(false)
-                .message("Failed to cancel shipping – will retry compensation")
-                .retryable(true)
-                .timestamp(LocalDateTime.now())
-                .build();
+        return new ShippingResponse(false, null, "Failed to cancel shipping – will retry compensation", true,
+                LocalDateTime.now());
     }
 
     // ====== HELPERS ======
 
-private InventoryResponse createOverloadInventoryResponse(String message) {
-        return InventoryResponse.builder()
-                .success(false)
-                .message(message)
-                .build();
+    private InventoryResponse createOverloadInventoryResponse(String message) {
+        return new InventoryResponse(false, null, message, List.of());
     }
 
     private PaymentResponse createOverloadPaymentResponse(String message) {
-        return PaymentResponse.builder()
-                .success(false)
-                .message(message)
-                .retryable(true)
-                .timestamp(LocalDateTime.now())
-                .build();
+        return new PaymentResponse(false, null, message, true, LocalDateTime.now());
     }
 
     private ShippingResponse createOverloadShippingResponse(String message) {
-        return ShippingResponse.builder()
-                .success(false)
-                .message(message)
-                .retryable(true)
-                .timestamp(LocalDateTime.now())
-                .build();
+        return new ShippingResponse(false, null, message, true, LocalDateTime.now());
     }
 
     private String getCircuitBreakerMetrics(String circuitBreakerName) {
@@ -326,5 +287,12 @@ private InventoryResponse createOverloadInventoryResponse(String message) {
     public void confirmInventoryReservation(String orderNumber) {
         log.info("Confirming inventory reservation for order: {}", orderNumber);
         inventoryClient.confirmReservation(orderNumber);
+    }
+
+    private ShippingResponse shippingResponseMapper(DeliveryResponse response) {
+        Boolean success = response != null && (response.status().equals("PENDING")
+                || response.status().equals("SHIPPED") || response.status().equals("DELIVERED"));
+        return new ShippingResponse(success, response.trackingNumber(), "Shipping arranged successfully", true,
+                response.createdAt());
     }
 }

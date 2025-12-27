@@ -29,15 +29,13 @@ public class RequestMapperService {
         public InventoryRequest mapToInventoryRequest(Order order) {
                 log.debug("Mapping order {} to inventory request", order.getOrderNumber());
 
-                return InventoryRequest.builder()
-                                .orderId(order.getOrderNumber())
-                                .items(order.getItems().stream()
-                                                .map(item -> InventoryItemRequest.builder()
-                                                                .productId(item.getProductId())
-                                                                .quantity(item.getQuantity())
-                                                                .build())
-                                                .toList())
-                                .build();
+                return new InventoryRequest(
+                                order.getOrderNumber(),
+                                order.getItems().stream()
+                                                .map(item -> new InventoryItemRequest(
+                                                                item.getProductId(),
+                                                                item.getQuantity()))
+                                                .toList());
         }
 
         /**
@@ -49,11 +47,11 @@ public class RequestMapperService {
         public PaymentRequest mapToPaymentRequest(Order order) {
                 log.debug("Mapping order {} to payment request", order.getOrderNumber());
 
-                return PaymentRequest.builder()
-                                .orderNumber(order.getOrderNumber())
-                                .customerId(order.getCustomerId())
-                                .amount(order.getTotalAmount())
-                                .build();
+                return new PaymentRequest(
+                                order.getOrderNumber(),
+                                order.getCustomerId(),
+                                order.getTotalAmount(),
+                                null);
         }
 
         /**
@@ -65,10 +63,9 @@ public class RequestMapperService {
         public ShippingRequest mapToShippingRequest(Order order) {
                 log.debug("Mapping order {} to shipping request", order.getOrderNumber());
 
-                return ShippingRequest.builder()
-                                .orderNumber(order.getOrderNumber())
-                                .customerId(order.getCustomerId())
-                                .shippingAddress(order.getShippingAddress())
-                                .build();
+                return new ShippingRequest(
+                                order.getOrderNumber(),
+                                order.getCustomerId(),
+                                order.getShippingAddress());
         }
 }

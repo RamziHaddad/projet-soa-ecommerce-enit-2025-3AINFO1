@@ -1,18 +1,9 @@
 package com.onlineshop.order.dto.request;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class InventoryRequest {
-
-    private String orderId;
-    private List<InventoryItemRequest> items;
-}
+public record InventoryRequest(
+        String orderId,
+        List<InventoryItemRequest> items
+) {
+} 

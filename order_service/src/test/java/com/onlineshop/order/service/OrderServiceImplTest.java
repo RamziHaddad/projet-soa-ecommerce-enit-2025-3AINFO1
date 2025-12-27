@@ -49,18 +49,10 @@ class OrderServiceImplTest {
     @BeforeEach
     void setUp() {
         // Initialize test data
-        OrderItemRequest itemRequest = OrderItemRequest.builder()
-                .productId("PROD-001")
-                .quantity(2)
-                .unitPrice(new BigDecimal("29.99"))
-                .build();
-        
-        orderRequest = OrderRequest.builder()
-                .customerId(1L)
-                .shippingAddress("123 Main St, City, State 12345")
-                .items(Arrays.asList(itemRequest))
-                .build();
-        
+        OrderItemRequest itemRequest = new OrderItemRequest("PROD-001", 2, new BigDecimal("29.99"));
+
+        orderRequest = new OrderRequest(1L, "123 Main St, City, State 12345", Arrays.asList(itemRequest));
+
         // Create test order
         OrderItem orderItem = OrderItem.builder()
                 .id(1L)
@@ -68,7 +60,7 @@ class OrderServiceImplTest {
                 .quantity(2)
                 .unitPrice(new BigDecimal("29.99"))
                 .build();
-        
+
         testOrder = Order.builder()
                 .id(1L)
                 .orderNumber("ORD-20250114120000-123")
@@ -93,10 +85,10 @@ class OrderServiceImplTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(testOrder.getCustomerId(), result.getCustomerId());
-        assertEquals(testOrder.getStatus(), result.getStatus());
-        assertEquals(new BigDecimal("59.98"), result.getTotalAmount());
-        
+        assertEquals(testOrder.getCustomerId(), result.customerId());
+        assertEquals(testOrder.getStatus(), result.status());
+        assertEquals(new BigDecimal("59.98"), result.totalAmount());
+
         verify(orderRepository, times(1)).save(any(Order.class));
         verify(sagaOrchestrator, times(1)).startSaga(any(Order.class));
     }
@@ -111,7 +103,7 @@ class OrderServiceImplTest {
         assertThrows(RuntimeException.class, () -> {
             orderService.createOrder(orderRequest);
         });
-        
+
         // Verify order status is updated to FAILED
         verify(orderRepository, times(2)).save(any(Order.class)); // Once for initial save, once for status update
         verify(sagaOrchestrator, times(1)).startSaga(any(Order.class));
@@ -127,8 +119,8 @@ class OrderServiceImplTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(testOrder.getId(), result.getId());
-        assertEquals(testOrder.getOrderNumber(), result.getOrderNumber());
+        assertEquals(testOrder.getId(), result.id());
+        assertEquals(testOrder.getOrderNumber(), result.orderNumber());
         verify(orderRepository, times(1)).findById(1L);
     }
 
@@ -154,7 +146,7 @@ class OrderServiceImplTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(testOrder.getOrderNumber(), result.getOrderNumber());
+        assertEquals(testOrder.getOrderNumber(), result.orderNumber());
         verify(orderRepository, times(1)).findByOrderNumber("ORD-20250114120000-123");
     }
 
@@ -182,7 +174,7 @@ class OrderServiceImplTest {
         // Then
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(testOrder.getCustomerId(), result.get(0).getCustomerId());
+        assertEquals(testOrder.getCustomerId(), result.get(0).customerId());
         verify(orderRepository, times(1)).findByCustomerId(1L);
     }
 
@@ -257,7 +249,8 @@ class OrderServiceImplTest {
 
         // Then
         assertEquals(OrderStatus.CANCELLED, testOrder.getStatus());
-        // After cancelling, compensation is triggered because status is no longer PENDING
+        // After cancelling, compensation is triggered because status is no longer
+        // PENDING
         verify(sagaOrchestrator, times(1)).compensate(testOrder);
     }
 }

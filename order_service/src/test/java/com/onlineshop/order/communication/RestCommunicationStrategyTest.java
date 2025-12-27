@@ -7,6 +7,7 @@ import com.onlineshop.order.dto.request.InventoryRequest;
 import com.onlineshop.order.dto.request.InventoryItemRequest;
 import com.onlineshop.order.dto.request.PaymentRequest;
 import com.onlineshop.order.dto.request.ShippingRequest;
+import com.onlineshop.order.dto.response.DeliveryResponse;
 import com.onlineshop.order.dto.response.InventoryResponse;
 import com.onlineshop.order.dto.response.PaymentResponse;
 import com.onlineshop.order.dto.response.ShippingResponse;
@@ -44,50 +45,29 @@ class RestCommunicationStrategyTest {
         private InventoryResponse inventoryResponse;
         private PaymentResponse paymentResponse;
         private ShippingResponse shippingResponse;
+        private DeliveryResponse deliveryResponse;
 
         @BeforeEach
         void setUp() {
 
-                InventoryItemRequest inventoryItem = InventoryItemRequest.builder()
-                                .productId("PROD-001")
-                                .quantity(2)
-                                .build();
+                InventoryItemRequest inventoryItem = new InventoryItemRequest("PROD-001", 2);
 
-inventoryRequest = InventoryRequest.builder()
-                                .orderId("ORD-2025-001")
-                                .items(Arrays.asList(inventoryItem))
-                                .build();
+                inventoryRequest = new InventoryRequest("ORD-2025-001", Arrays.asList(inventoryItem));
 
-                paymentRequest = PaymentRequest.builder()
-                                .orderNumber("ORD-2025-001")
-                                .customerId(1L)
-                                .amount(new BigDecimal("59.98"))
-                                .paymentMethod("CREDIT_CARD")
-                                .build();
+                paymentRequest = new PaymentRequest("ORD-2025-001", 1L, new BigDecimal("59.98"), "CREDIT_CARD");
 
-                shippingRequest = ShippingRequest.builder()
-                                .orderNumber("ORD-2025-001")
-                                .customerId(1L)
-                                .shippingAddress("123 Main St, City, State 12345")
-                                .build();
+                shippingRequest = new ShippingRequest("ORD-2025-001", 1L, "123 Main St, City, State 12345");
 
-inventoryResponse = InventoryResponse.builder()
-                                .success(true)
-                                .orderId("INV-TXN-001")
-                                .message("Inventory reserved successfully")
-                                .build();
+                inventoryResponse = new InventoryResponse(true, "INV-TXN-001", "Inventory reserved successfully",
+                                java.util.List.of());
 
-                paymentResponse = PaymentResponse.builder()
-                                .success(true)
-                                .transactionId("PAY-TXN-001")
-                                .message("Payment processed successfully")
-                                .build();
+                paymentResponse = new PaymentResponse(true, "PAY-TXN-001", "Payment processed successfully", null,
+                                null);
 
-                shippingResponse = ShippingResponse.builder()
-                                .success(true)
-                                .trackingNumber("SHIP-TRK-001")
-                                .message("Shipping arranged successfully")
-                                .build();
+                shippingResponse = new ShippingResponse(true, "SHIP-TRK-001", "Shipping arranged successfully", null,
+                                null);
+                deliveryResponse = new DeliveryResponse(1L, 1L, 1L, "PENDING", "SHIP-TRK-001", null);
+               
         }
 
         @Test
@@ -99,28 +79,28 @@ inventoryResponse = InventoryResponse.builder()
                 InventoryResponse result = restCommunicationStrategy.reserveInventory(inventoryRequest);
 
                 assertNotNull(result);
-assertTrue(result.isSuccess());
-assertEquals("INV-TXN-001", result.getOrderId());
-                assertEquals("Inventory reserved successfully", result.getMessage());
+                assertTrue(result.success());
+                assertEquals("INV-TXN-001", result.orderId());
+                assertEquals("Inventory reserved successfully", result.message());
 
                 verify(inventoryServiceClient, times(1)).reserveInventory(inventoryRequest);
         }
 
-@Test
-void testReleaseInventory() {
+        @Test
+        void testReleaseInventory() {
 
-        String orderId = "ORD-2025-001";
-        doNothing().when(inventoryServiceClient).cancelReservation(orderId);
+                String orderId = "ORD-2025-001";
+                doNothing().when(inventoryServiceClient).cancelReservation(orderId);
 
-        InventoryResponse result = restCommunicationStrategy.releaseInventory(orderId);
+                InventoryResponse result = restCommunicationStrategy.releaseInventory(orderId);
 
-        assertNotNull(result);
-        assertTrue(result.isSuccess());
-        assertEquals(orderId, result.getOrderId());
-        assertEquals("Inventory reservation cancelled successfully", result.getMessage());
+                assertNotNull(result);
+                assertTrue(result.success());
+                assertEquals(orderId, result.orderId());
+                assertEquals("Inventory reservation cancelled successfully", result.message());
 
-        verify(inventoryServiceClient, times(1)).cancelReservation(orderId);
-}
+                verify(inventoryServiceClient, times(1)).cancelReservation(orderId);
+        }
 
         @Test
         void testProcessPayment() {
@@ -130,9 +110,9 @@ void testReleaseInventory() {
                 PaymentResponse result = restCommunicationStrategy.processPayment(paymentRequest);
 
                 assertNotNull(result);
-                assertTrue(result.getSuccess());
-                assertEquals("PAY-TXN-001", result.getTransactionId());
-                assertEquals("Payment processed successfully", result.getMessage());
+                assertTrue(result.success());
+                assertEquals("PAY-TXN-001", result.transactionId());
+                assertEquals("Payment processed successfully", result.message());
 
                 verify(paymentServiceClient, times(1)).processPayment(paymentRequest);
         }
@@ -146,8 +126,8 @@ void testReleaseInventory() {
                 PaymentResponse result = restCommunicationStrategy.refundPayment(transactionId);
 
                 assertNotNull(result);
-                assertTrue(result.getSuccess());
-                assertEquals("PAY-TXN-001", result.getTransactionId());
+                assertTrue(result.success());
+                assertEquals("PAY-TXN-001", result.transactionId());
 
                 verify(paymentServiceClient, times(1)).refundPayment(transactionId);
         }
@@ -155,14 +135,14 @@ void testReleaseInventory() {
         @Test
         void testArrangeShipping() {
 
-                when(shippingServiceClient.arrangeShipping(any(ShippingRequest.class))).thenReturn(shippingResponse);
+                when(shippingServiceClient.arrangeShipping(any(ShippingRequest.class))).thenReturn(deliveryResponse);
 
                 ShippingResponse result = restCommunicationStrategy.arrangeShipping(shippingRequest);
 
                 assertNotNull(result);
-                assertTrue(result.getSuccess());
-                assertEquals("SHIP-TRK-001", result.getTrackingNumber());
-                assertEquals("Shipping arranged successfully", result.getMessage());
+                assertTrue(result.success());
+                assertEquals("SHIP-TRK-001", result.trackingNumber());
+                assertEquals("Shipping arranged successfully", result.message());
 
                 verify(shippingServiceClient, times(1)).arrangeShipping(shippingRequest);
         }
@@ -176,8 +156,8 @@ void testReleaseInventory() {
                 ShippingResponse result = restCommunicationStrategy.cancelShipping(trackingNumber);
 
                 assertNotNull(result);
-                assertTrue(result.getSuccess());
-                assertEquals("SHIP-TRK-001", result.getTrackingNumber());
+                assertTrue(result.success());
+                assertEquals("SHIP-TRK-001", result.trackingNumber());
 
                 verify(shippingServiceClient, times(1)).cancelShipping(trackingNumber);
         }
@@ -192,8 +172,8 @@ void testReleaseInventory() {
                 InventoryResponse result = restCommunicationStrategy.reserveInventory(inventoryRequest);
 
                 assertNotNull(result);
-assertFalse(result.isSuccess());
-                assertTrue(result.getMessage().toLowerCase().contains("inventory service temporarily unavailable"));
+                assertFalse(result.success());
+                assertTrue(result.message().toLowerCase().contains("inventory service temporarily unavailable"));
         }
 
         @Test
@@ -206,8 +186,8 @@ assertFalse(result.isSuccess());
                 InventoryResponse result = restCommunicationStrategy.reserveInventory(inventoryRequest);
 
                 assertNotNull(result);
-assertFalse(result.isSuccess());
-                assertTrue(result.getMessage().toLowerCase().contains("inventory service temporarily unavailable"));
+                assertFalse(result.success());
+                assertTrue(result.message().toLowerCase().contains("inventory service temporarily unavailable"));
         }
 
         @Test
@@ -220,8 +200,8 @@ assertFalse(result.isSuccess());
                 PaymentResponse result = restCommunicationStrategy.processPayment(paymentRequest);
 
                 assertNotNull(result);
-                assertFalse(result.getSuccess());
-                assertTrue(result.getMessage().toLowerCase().contains("payment service temporarily unavailable"));
+                assertFalse(result.success());
+                assertTrue(result.message().toLowerCase().contains("payment service temporarily unavailable"));
         }
 
         @Test
@@ -234,8 +214,8 @@ assertFalse(result.isSuccess());
                 ShippingResponse result = restCommunicationStrategy.arrangeShipping(shippingRequest);
 
                 assertNotNull(result);
-                assertFalse(result.getSuccess());
-                assertTrue(result.getMessage().toLowerCase().contains("shipping service temporarily unavailable"));
+                assertFalse(result.success());
+                assertTrue(result.message().toLowerCase().contains("shipping service temporarily unavailable"));
         }
 
 }

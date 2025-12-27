@@ -1,0 +1,97 @@
+# Payment Service Endpoints
+@baseUrl = http://localhost:8081
+@paymentId = 550e8400-e29b-41d4-a716-446655440000
+#####################################################################
+# Process Payment Endpoint (for order service compatibility)
+#####################################################################
+POST {{baseUrl}}/api/payment/process
+Content-Type: application/json
+
+{
+  "orderNumber": "ORD-123",
+  "customerId": 123,
+  "amount": 50.00,
+  "paymentMethod": "CARD"
+}
+
+#####################################################################
+# Process Payment Endpoint (internal)
+#####################################################################
+POST {{baseUrl}}/api/payment
+Content-Type: application/json
+
+{
+  "paymentId": "550e8400-e29b-41d4-a716-446655440000",
+  "userId": "550e8400-e29b-41d4-a716-446655440001",
+  "cardNumber": "1234567890123456",
+  "amount": 100.50
+}
+
+#####################################################################
+# Get Payment Status
+#####################################################################
+GET {{baseUrl}}/api/payment/{paymentId}
+
+#####################################################################
+# Get Payments by User
+#####################################################################
+GET {{baseUrl}}/api/payment/user/{userId}
+
+#####################################################################
+# Get Payment Details
+#####################################################################
+GET {{baseUrl}}/api/payment/{paymentId}/details
+
+#####################################################################
+# Cancel Payment
+#####################################################################
+PUT {{baseUrl}}/api/payment/{paymentId}/cancel
+
+#####################################################################
+# Refund Payment
+#####################################################################
+POST {{baseUrl}}/api/payment/refund/550e8400-e29b-41d4-a716-446655440000
+
+#####################################################################
+# Webhook Endpoint
+#####################################################################
+POST {{baseUrl}}/api/payment/webhook
+Content-Type: application/json
+
+{
+  "event": "payment.success",
+  "paymentId": "550e8400-e29b-41d4-a716-446655440000",
+  "amount": 100.50
+}
+
+#####################################################################
+# Bank Simulator Pay Endpoint
+#####################################################################
+POST {{baseUrl}}/bank/api/pay
+Content-Type: application/json
+
+{
+  "cardNumber": "1234567890123456",
+  "amount": 100.50
+}
+
+#####################################################################
+# Bank Simulator Refund Endpoint
+#####################################################################
+POST {{baseUrl}}/bank/api/refund
+Content-Type: application/json
+
+{
+  "paymentId": "550e8400-e29b-41d4-a716-446655440000",
+  "amount": 50.00
+}
+
+#####################################################################
+# Bank Simulator Cancel Endpoint
+#####################################################################
+POST {{baseUrl}}/bank/api/cancel
+Content-Type: application/json
+
+{
+  "paymentId": "550e8400-e29b-41d4-a716-446655440000"
+}

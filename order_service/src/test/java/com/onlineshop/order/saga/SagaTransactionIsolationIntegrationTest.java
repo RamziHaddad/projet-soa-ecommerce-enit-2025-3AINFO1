@@ -60,17 +60,9 @@ class SagaTransactionIsolationIntegrationTest {
     private SagaOrchestrator sagaOrchestrator;
 
     private OrderRequest createTestOrderRequest() {
-        OrderItemRequest item = OrderItemRequest.builder()
-                .productId("PROD-001")
-                .quantity(2)
-                .unitPrice(new BigDecimal("50.00"))
-                .build();
+        OrderItemRequest item = new OrderItemRequest("PROD-001", 2, new BigDecimal("50.00"));
 
-        return OrderRequest.builder()
-                .customerId(12345L)
-                .shippingAddress("123 Test Street, Test City, TC 12345")
-                .items(List.of(item))
-                .build();
+        return new OrderRequest(12345L, "123 Test Street, Test City, TC 12345", List.of(item));
     }
 
     @BeforeEach
@@ -97,7 +89,7 @@ class SagaTransactionIsolationIntegrationTest {
                 .atMost(Duration.ofSeconds(10))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
-                    Order order = orderRepository.findById(response.getId()).orElseThrow();
+                    Order order = orderRepository.findById(response.id()).orElseThrow();
                     SagaState sagaState = sagaStateRepository.findByOrder(order).orElseThrow();
 
                     // Verify inventory step has committed
@@ -133,7 +125,7 @@ class SagaTransactionIsolationIntegrationTest {
                 .atMost(Duration.ofSeconds(15))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
-                    Order order = orderRepository.findById(response.getId()).orElseThrow();
+                    Order order = orderRepository.findById(response.id()).orElseThrow();
                     SagaState sagaState = sagaStateRepository.findByOrder(order).orElseThrow();
 
                     // Verify inventory step is still committed
@@ -176,7 +168,7 @@ class SagaTransactionIsolationIntegrationTest {
                 .atMost(Duration.ofSeconds(20))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
-                    Order order = orderRepository.findById(response.getId()).orElseThrow();
+                    Order order = orderRepository.findById(response.id()).orElseThrow();
                     SagaState sagaState = sagaStateRepository.findByOrder(order).orElseThrow();
 
                     // Verify inventory and payment steps are still committed
@@ -220,7 +212,7 @@ class SagaTransactionIsolationIntegrationTest {
                 .atMost(Duration.ofSeconds(25))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
-                    Order order = orderRepository.findById(response.getId()).orElseThrow();
+                    Order order = orderRepository.findById(response.id()).orElseThrow();
                     SagaState sagaState = sagaStateRepository.findByOrder(order).orElseThrow();
 
                     // Verify saga reached compensated or failed state
@@ -256,7 +248,7 @@ class SagaTransactionIsolationIntegrationTest {
                 .atMost(Duration.ofSeconds(15))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
-                    Order order = orderRepository.findById(response.getId()).orElseThrow();
+                    Order order = orderRepository.findById(response.id()).orElseThrow();
                     SagaState sagaState = sagaStateRepository.findByOrder(order).orElseThrow();
 
                     // Verify saga is in a retryable failed state
@@ -265,7 +257,7 @@ class SagaTransactionIsolationIntegrationTest {
                 });
 
         // When: Trigger retry manually
-        Order order = orderRepository.findById(response.getId()).orElseThrow();
+        Order order = orderRepository.findById(response.id()).orElseThrow();
         SagaState beforeRetry = sagaStateRepository.findByOrder(order).orElseThrow();
         SagaStep stepBeforeRetry = beforeRetry.getCurrentStep();
         String inventoryTxIdBeforeRetry = beforeRetry.getInventoryTransactionId();
@@ -277,7 +269,7 @@ class SagaTransactionIsolationIntegrationTest {
                 .atMost(Duration.ofSeconds(20))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
-                    Order retryOrder = orderRepository.findById(response.getId()).orElseThrow();
+                    Order retryOrder = orderRepository.findById(response.id()).orElseThrow();
                     SagaState afterRetry = sagaStateRepository.findByOrder(retryOrder).orElseThrow();
 
                     // Verify retry started from the same step
@@ -314,7 +306,7 @@ class SagaTransactionIsolationIntegrationTest {
                 .atMost(Duration.ofSeconds(30))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
-                    Order order = orderRepository.findById(response.getId()).orElseThrow();
+                    Order order = orderRepository.findById(response.id()).orElseThrow();
                     SagaState sagaState = sagaStateRepository.findByOrder(order).orElseThrow();
 
                     // Verify all steps completed and committed
@@ -350,9 +342,9 @@ class SagaTransactionIsolationIntegrationTest {
         var response = orderService.createOrder(request);
 
         // Then: Order should be immediately retrievable (committed)
-        Order order = orderRepository.findById(response.getId()).orElseThrow();
+        Order order = orderRepository.findById(response.id()).orElseThrow();
         assertThat(order).isNotNull();
-        assertThat(order.getOrderNumber()).isEqualTo(response.getOrderNumber());
+        assertThat(order.getOrderNumber()).isEqualTo(response.orderNumber());
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PROCESSING);
 
         log.info("Order creation committed immediately - Order: {}", order.getOrderNumber());
