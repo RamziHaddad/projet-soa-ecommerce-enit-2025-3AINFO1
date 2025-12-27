@@ -32,3 +32,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Fichiers batch Windows
+start*.bat
+*.bak
+*.sh
+
+# Fichiers Markdown (à l'exception des fichiers importants)
+*.md
+!README.md

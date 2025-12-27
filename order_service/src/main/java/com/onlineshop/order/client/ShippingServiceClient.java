@@ -1,6 +1,7 @@
 package com.onlineshop.order.client;
 
 import com.onlineshop.order.dto.request.ShippingRequest;
+import com.onlineshop.order.dto.response.DeliveryResponse;
 import com.onlineshop.order.dto.response.ShippingResponse;
 
 import org.springframework.cloud.openfeign.FeignClient;
@@ -13,8 +14,8 @@ import org.springframework.web.bind.annotation.*;
 public interface ShippingServiceClient {
     
     @PostMapping("/api/shipping/arrange")
-    ShippingResponse arrangeShipping(@RequestBody ShippingRequest request);
+    DeliveryResponse arrangeShipping(@RequestBody ShippingRequest request);
     
-    @PostMapping("/api/shipping/cancel/{trackingNumber}")
-    ShippingResponse cancelShipping(@PathVariable("trackingNumber") String trackingNumber);
+    @DeleteMapping("/api/deliveries/{trackingNumber}")
+    ShippingResponse cancelShipping(@PathVariable("id") String trackingNumber);
 }

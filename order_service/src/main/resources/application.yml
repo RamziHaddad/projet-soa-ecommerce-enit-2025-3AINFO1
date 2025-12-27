@@ -1,0 +1,176 @@
+# Application Configuration
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:order-service}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/order_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.postgresql.Driver}
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: ${SPRING_JPA_SHOW_SQL:true}
+    properties:
+      hibernate:
+        dialect: ${SPRING_JPA_HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+        format_sql: ${SPRING_JPA_HIBERNATE_FORMAT_SQL:true}
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:9000}
+
+# External Services Configuration
+services:
+  payment:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8084}
+  inventory:
+    url: ${INVENTORY_SERVICE_URL:http://localhost:8082}
+  shipping:
+    url: ${SHIPPING_SERVICE_URL:http://localhost:8083}
+
+# Management & Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,metrics,prometheus}
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:always}
+
+# Feign Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: ${FEIGN_CONNECT_TIMEOUT:5000}
+        readTimeout: ${FEIGN_READ_TIMEOUT:5000}
+        loggerLevel: ${FEIGN_LOGGER_LEVEL:full}
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventoryService:
+        registerHealthIndicator: ${CIRCUITBREAKER_INVENTORY_REGISTER_HEALTH_INDICATOR:true}
+        slidingWindowType: ${CIRCUITBREAKER_INVENTORY_SLIDING_WINDOW_TYPE:COUNT_BASED}
+        slidingWindowSize: ${CIRCUITBREAKER_INVENTORY_SLIDING_WINDOW_SIZE:10}
+        minimumNumberOfCalls: ${CIRCUITBREAKER_INVENTORY_MINIMUM_NUMBER_OF_CALLS:5}
+        permittedNumberOfCallsInHalfOpenState: ${CIRCUITBREAKER_INVENTORY_PERMITTED_NUMBER_OF_CALLS_HALF_OPEN:3}
+        automaticTransitionFromOpenToHalfOpenEnabled: ${CIRCUITBREAKER_INVENTORY_AUTO_TRANSITION_ENABLED:true}
+        waitDurationInOpenState: ${CIRCUITBREAKER_INVENTORY_WAIT_DURATION:30s}
+        failureRateThreshold: ${CIRCUITBREAKER_INVENTORY_FAILURE_RATE_THRESHOLD:50}
+        eventConsumerBufferSize: ${CIRCUITBREAKER_INVENTORY_EVENT_CONSUMER_BUFFER_SIZE:10}
+      paymentService:
+        registerHealthIndicator: ${CIRCUITBREAKER_PAYMENT_REGISTER_HEALTH_INDICATOR:true}
+        slidingWindowType: ${CIRCUITBREAKER_PAYMENT_SLIDING_WINDOW_TYPE:COUNT_BASED}
+        slidingWindowSize: ${CIRCUITBREAKER_PAYMENT_SLIDING_WINDOW_SIZE:10}
+        minimumNumberOfCalls: ${CIRCUITBREAKER_PAYMENT_MINIMUM_NUMBER_OF_CALLS:5}
+        permittedNumberOfCallsInHalfOpenState: ${CIRCUITBREAKER_PAYMENT_PERMITTED_NUMBER_OF_CALLS_HALF_OPEN:3}
+        automaticTransitionFromOpenToHalfOpenEnabled: ${CIRCUITBREAKER_PAYMENT_AUTO_TRANSITION_ENABLED:true}
+        waitDurationInOpenState: ${CIRCUITBREAKER_PAYMENT_WAIT_DURATION:30s}
+        failureRateThreshold: ${CIRCUITBREAKER_PAYMENT_FAILURE_RATE_THRESHOLD:50}
+        eventConsumerBufferSize: ${CIRCUITBREAKER_PAYMENT_EVENT_CONSUMER_BUFFER_SIZE:10}
+      shippingService:
+        registerHealthIndicator: ${CIRCUITBREAKER_SHIPPING_REGISTER_HEALTH_INDICATOR:true}
+        slidingWindowType: ${CIRCUITBREAKER_SHIPPING_SLIDING_WINDOW_TYPE:COUNT_BASED}
+        slidingWindowSize: ${CIRCUITBREAKER_SHIPPING_SLIDING_WINDOW_SIZE:10}
+        minimumNumberOfCalls: ${CIRCUITBREAKER_SHIPPING_MINIMUM_NUMBER_OF_CALLS:5}
+        permittedNumberOfCallsInHalfOpenState: ${CIRCUITBREAKER_SHIPPING_PERMITTED_NUMBER_OF_CALLS_HALF_OPEN:3}
+        automaticTransitionFromOpenToHalfOpenEnabled: ${CIRCUITBREAKER_SHIPPING_AUTO_TRANSITION_ENABLED:true}
+        waitDurationInOpenState: ${CIRCUITBREAKER_SHIPPING_WAIT_DURATION:30s}
+        failureRateThreshold: ${CIRCUITBREAKER_SHIPPING_FAILURE_RATE_THRESHOLD:50}
+        eventConsumerBufferSize: ${CIRCUITBREAKER_SHIPPING_EVENT_CONSUMER_BUFFER_SIZE:10}
+
+  # Resilience4j Retry Configuration
+  retry:
+    instances:
+      inventoryService:
+        maxAttempts: ${RETRY_INVENTORY_MAX_ATTEMPTS:3}
+        waitDuration: ${RETRY_INVENTORY_WAIT_DURATION:1s}
+        enableExponentialBackoff: ${RETRY_INVENTORY_ENABLE_EXPONENTIAL_BACKOFF:true}
+        exponentialBackoffMultiplier: ${RETRY_INVENTORY_EXPONENTIAL_BACKOFF_MULTIPLIER:2}
+      paymentService:
+        maxAttempts: ${RETRY_PAYMENT_MAX_ATTEMPTS:3}
+        waitDuration: ${RETRY_PAYMENT_WAIT_DURATION:1s}
+        enableExponentialBackoff: ${RETRY_PAYMENT_ENABLE_EXPONENTIAL_BACKOFF:true}
+        exponentialBackoffMultiplier: ${RETRY_PAYMENT_EXPONENTIAL_BACKOFF_MULTIPLIER:2}
+      shippingService:
+        maxAttempts: ${RETRY_SHIPPING_MAX_ATTEMPTS:3}
+        waitDuration: ${RETRY_SHIPPING_WAIT_DURATION:1s}
+        enableExponentialBackoff: ${RETRY_SHIPPING_ENABLE_EXPONENTIAL_BACKOFF:true}
+        exponentialBackoffMultiplier: ${RETRY_SHIPPING_EXPONENTIAL_BACKOFF_MULTIPLIER:2}
+
+  # Resilience4j Bulkhead Configuration
+  bulkhead:
+    instances:
+      inventoryService:
+        maxConcurrentCalls: ${BULKHEAD_INVENTORY_MAX_CONCURRENT_CALLS:10}
+        maxWaitDuration: ${BULKHEAD_INVENTORY_MAX_WAIT_DURATION:500ms}
+      paymentService:
+        maxConcurrentCalls: ${BULKHEAD_PAYMENT_MAX_CONCURRENT_CALLS:10}
+        maxWaitDuration: ${BULKHEAD_PAYMENT_MAX_WAIT_DURATION:500ms}
+      shippingService:
+        maxConcurrentCalls: ${BULKHEAD_SHIPPING_MAX_CONCURRENT_CALLS:10}
+        maxWaitDuration: ${BULKHEAD_SHIPPING_MAX_WAIT_DURATION:500ms}
+
+  # Resilience4j Rate Limiter Configuration
+  ratelimiter:
+    instances:
+      inventoryService:
+        limitForPeriod: ${RATELIMITER_INVENTORY_LIMIT_FOR_PERIOD:20}
+        limitRefreshPeriod: ${RATELIMITER_INVENTORY_LIMIT_REFRESH_PERIOD:1s}
+        timeoutDuration: ${RATELIMITER_INVENTORY_TIMEOUT_DURATION:0}
+      paymentService:
+        limitForPeriod: ${RATELIMITER_PAYMENT_LIMIT_FOR_PERIOD:15}
+        limitRefreshPeriod: ${RATELIMITER_PAYMENT_LIMIT_REFRESH_PERIOD:1s}
+        timeoutDuration: ${RATELIMITER_PAYMENT_TIMEOUT_DURATION:0}
+      shippingService:
+        limitForPeriod: ${RATELIMITER_SHIPPING_LIMIT_FOR_PERIOD:15}
+        limitRefreshPeriod: ${RATELIMITER_SHIPPING_LIMIT_REFRESH_PERIOD:1s}
+        timeoutDuration: ${RATELIMITER_SHIPPING_TIMEOUT_DURATION:0}
+
+  # Resilience4j Time Limiter Configuration
+  timelimiter:
+    instances:
+      inventoryService:
+        timeoutDuration: ${TIMELIMITER_INVENTORY_TIMEOUT_DURATION:5s}
+        cancelRunningFuture: ${TIMELIMITER_INVENTORY_CANCEL_RUNNING_FUTURE:true}
+      paymentService:
+        timeoutDuration: ${TIMELIMITER_PAYMENT_TIMEOUT_DURATION:5s}
+        cancelRunningFuture: ${TIMELIMITER_PAYMENT_CANCEL_RUNNING_FUTURE:true}
+      shippingService:
+        timeoutDuration: ${TIMELIMITER_SHIPPING_TIMEOUT_DURATION:5s}
+        cancelRunningFuture: ${TIMELIMITER_SHIPPING_CANCEL_RUNNING_FUTURE:true}
+
+  # Resilience4j Thread Pool Bulkhead Configuration
+  thread-pool-bulkhead:
+    instances:
+      inventoryService:
+        maxThreadPoolSize: ${THREAD_POOL_BULKHEAD_INVENTORY_MAX_THREAD_POOL_SIZE:4}
+        coreThreadPoolSize: ${THREAD_POOL_BULKHEAD_INVENTORY_CORE_THREAD_POOL_SIZE:2}
+        queueCapacity: ${THREAD_POOL_BULKHEAD_INVENTORY_QUEUE_CAPACITY:2}
+      paymentService:
+        maxThreadPoolSize: ${THREAD_POOL_BULKHEAD_PAYMENT_MAX_THREAD_POOL_SIZE:4}
+        coreThreadPoolSize: ${THREAD_POOL_BULKHEAD_PAYMENT_CORE_THREAD_POOL_SIZE:2}
+        queueCapacity: ${THREAD_POOL_BULKHEAD_PAYMENT_QUEUE_CAPACITY:2}
+      shippingService:
+        maxThreadPoolSize: ${THREAD_POOL_BULKHEAD_SHIPPING_MAX_THREAD_POOL_SIZE:4}
+        coreThreadPoolSize: ${THREAD_POOL_BULKHEAD_SHIPPING_CORE_THREAD_POOL_SIZE:2}
+        queueCapacity: ${THREAD_POOL_BULKHEAD_SHIPPING_QUEUE_CAPACITY:2}
+
+# Order Service Configuration
+order:
+  cancellation:
+    completed-window-hours: ${ORDER_CANCELLATION_COMPLETED_WINDOW_HOURS:24}
+
+# Logging Configuration
+logging:
+  file:
+    name: ${LOG_FILE:./logs/order-service.log}
+  level:
+    com.onlineshop.order: ${LOGGING_LEVEL_ORDER:DEBUG}
+    org.springframework.web: ${LOGGING_LEVEL_SPRING_WEB:INFO}
+    org.hibernate.SQL: ${LOGGING_LEVEL_HIBERNATE_SQL:DEBUG}
+    feign: ${LOGGING_LEVEL_FEIGN:DEBUG}

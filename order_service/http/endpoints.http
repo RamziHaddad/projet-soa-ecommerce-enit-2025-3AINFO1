@@ -1,0 +1,100 @@
+@inventory = http://localhost:8082
+@payment = http://localhost:8084
+@shipping = http://localhost:8083
+@orders = http://localhost:9000
+
+### Inventory — Reserve (success)
+POST {{inventory}}/api/inventory/reserve
+Content-Type: application/json
+
+{
+  "orderNumber": "TEST-123",
+  "items": [
+    { "productId": 1, "quantity": 2 }
+  ]
+}
+
+# Expected: 200 JSON with `success: true`, `transactionId`, `timestamp`
+
+### Payment — Process (success)
+POST {{payment}}/api/payment/process
+Content-Type: application/json
+
+{
+  "orderNumber": "TEST-123",
+  "amount": 100.00,
+  "currency": "USD"
+}
+
+# Expected: 200 JSON with `success: true`, `transactionId`, `timestamp`
+
+### Payment — Refund (success)
+POST {{payment}}/api/payment/refund/123456
+Content-Type: application/json
+
+{
+  "orderNumber": "TEST-123",
+  "reason": "Customer request"
+}
+
+# Expected: 200 JSON with `success: true`, `transactionId` (from path), `timestamp`
+
+### Shipping — Arrange (success)
+POST {{shipping}}/api/shipping/arrange
+Content-Type: application/json
+
+{
+  "orderNumber": "TEST-123",
+  "customerId": 1,
+  "shippingAddress": "123 Main St, Anytown, USA"
+}
+
+# Expected: 200 JSON with `success: true`, `trackingNumber`, `timestamp`
+
+### Shipping — cancel (success)
+POST {{shipping}}/api/shipping/cancel/TRACK123
+Content-Type: application/json
+
+###
+POST  http://localhost:8083/api/shipping/cancel/fuckyou
+Content-Type : application/json
+
+### OrderService — Create Order
+POST {{orders}}/api/orders
+Content-Type: application/json
+
+{
+  "customerId": 1,
+  "items": [ { "productId": 1, "quantity": 2, "unitPrice": 50.00 } ],
+  "shippingAddress": "123 Main St, Anytown, USA",
+  "paymentMethod": "CARD"
+}
+
+# Expected: 200 JSON with created `orderNumber` and details
+
+### OrderService — Get Order By ID
+GET {{orders}}/api/orders/1
+
+# Expected: 200 JSON with order details
+
+### OrderService — Get Order By Number
+GET {{orders}}/api/orders/number/TEST-123
+
+# Expected: 200 JSON with order details
+
+### OrderService — Get Orders By Customer
+GET {{orders}}/api/orders/customer/1
+
+# Expected: 200 JSON array of orders for customer
+
+### OrderService — Cancel Order
+DELETE {{orders}}/api/orders/1
+
+# Expected: 204 No Content
+
+# Notes:
+# - Use the VS Code REST Client (extension) and click "Send Request" above each request.
+# - If mappings changed, restart the WireMock containers:
+#   cd order_service && docker-compose restart wiremock-inventory wiremock-payment wiremock-shipping
+# - Alternative: use the curl commands shown in the mapping comments if you prefer CLI.
+

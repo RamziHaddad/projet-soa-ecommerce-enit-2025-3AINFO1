@@ -1,48 +1,122 @@
 package com.onlineshop.order.exception;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Global exception handler for REST controllers
+ */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    
+
     @ExceptionHandler(OrderNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleOrderNotFoundException(OrderNotFoundException ex) {
-        // TODO: Implement exception handling
-        return null;
+        log.warn("Order not found: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Order Not Found")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
-    
+
     @ExceptionHandler(SagaException.class)
     public ResponseEntity<ErrorResponse> handleSagaException(SagaException ex) {
-        // TODO: Implement exception handling
-        return null;
+        log.error("SAGA error: {}", ex.getMessage(), ex);
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("SAGA Processing Error")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
-    
+
     @ExceptionHandler(CompensationException.class)
     public ResponseEntity<ErrorResponse> handleCompensationException(CompensationException ex) {
-        // TODO: Implement exception handling
-        return null;
+        log.error("Compensation error: {}", ex.getMessage(), ex);
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Compensation Error")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
-    
+
     @ExceptionHandler(ServiceCommunicationException.class)
     public ResponseEntity<ErrorResponse> handleServiceCommunicationException(ServiceCommunicationException ex) {
-        // TODO: Implement exception handling
-        return null;
+        log.error("Service communication error: {}", ex.getMessage(), ex);
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .error("Service Communication Error")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
     }
-    
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        // TODO: Implement validation exception handling
-        return null;
+        Map<String, String> errors = new HashMap<>();
+        BindingResult bindingResult = ex.getBindingResult();
+        if (bindingResult != null) {
+            bindingResult.getAllErrors().forEach(error -> {
+                String fieldName = error instanceof FieldError ? ((FieldError) error).getField()
+                        : error.getObjectName();
+                String errorMessage = error.getDefaultMessage();
+                errors.put(fieldName, errorMessage);
+            });
+        }
+        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
-    
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException ex) {
+        log.warn("Illegal state: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Illegal State")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
+        log.error("Runtime error: {}", ex.getMessage(), ex);
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Internal Server Error")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
-        // TODO: Implement global exception handling
-        return null;
+        log.error("Unexpected error: {}", ex.getMessage(), ex);
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Internal Server Error")
+                .message("An unexpected error occurred")
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 }

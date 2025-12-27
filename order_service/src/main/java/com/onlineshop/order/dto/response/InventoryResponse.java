@@ -1,17 +1,16 @@
 package com.onlineshop.order.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class InventoryResponse {
-    
-    private Boolean success;
-    private String transactionId;
-    private String message;
+public record InventoryResponse(
+        boolean success,
+        String orderId,
+        String message,
+        List<ItemReservation> items) {
+    public static record ItemReservation(
+            String reservationId,
+            String productId,
+            Integer quantity,
+            String status) {
+    }
 }
