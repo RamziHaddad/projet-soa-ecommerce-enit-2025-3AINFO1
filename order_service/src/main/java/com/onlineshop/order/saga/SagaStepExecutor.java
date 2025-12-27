@@ -59,17 +59,17 @@ public class SagaStepExecutor {
             var inventoryRequest = requestMapperService.mapToInventoryRequest(order);
             var inventoryResponse = orderServiceCommunication.reserveInventory(inventoryRequest);
 
-            if (inventoryResponse != null && Boolean.TRUE.equals(inventoryResponse.getSuccess())) {
+            if (inventoryResponse != null && inventoryResponse.success()) {
                 sagaStateService.updateInventoryStateAndProceed(order,
-                        inventoryResponse.getTransactionId(),
+                        inventoryResponse.orderId(),
                         SagaStep.PAYMENT_PROCESSING);
 
                 // Trigger next step asynchronously
                 executePaymentStep(orderId);
             } else {
-                handleStepFailure(order, inventoryResponse != null ? inventoryResponse.getRetryable() : false,
+                handleStepFailure(order, false,
                         new InventoryReservationException("Inventory reservation failed: " +
-                                (inventoryResponse != null ? inventoryResponse.getMessage() : GENERAL_ERROR_MESSAGE)));
+                                (inventoryResponse != null ? inventoryResponse.message() : GENERAL_ERROR_MESSAGE)));
             }
         } catch (Exception e) {
             handleStepFailure(order, false, e);
@@ -94,17 +94,17 @@ public class SagaStepExecutor {
             var paymentRequest = requestMapperService.mapToPaymentRequest(order);
             var paymentResponse = orderServiceCommunication.processPayment(paymentRequest);
 
-            if (paymentResponse != null && Boolean.TRUE.equals(paymentResponse.getSuccess())) {
+            if (paymentResponse != null && Boolean.TRUE.equals(paymentResponse.success())) {
                 sagaStateService.updatePaymentStateAndProceed(order,
-                        paymentResponse.getTransactionId(),
+                        paymentResponse.transactionId(),
                         SagaStep.SHIPPING_ARRANGEMENT);
 
                 // Trigger next step asynchronously
                 executeShippingStep(orderId);
             } else {
-                handleStepFailure(order, paymentResponse != null ? paymentResponse.getRetryable() : false,
+                handleStepFailure(order, paymentResponse != null ? paymentResponse.retryable() : false,
                         new PaymentProcessingException("Payment processing failed: " +
-                                (paymentResponse != null ? paymentResponse.getMessage() : GENERAL_ERROR_MESSAGE)));
+                                (paymentResponse != null ? paymentResponse.message() : GENERAL_ERROR_MESSAGE)));
             }
         } catch (Exception e) {
             handleStepFailure(order, false, e);
@@ -129,17 +129,17 @@ public class SagaStepExecutor {
             var shippingRequest = requestMapperService.mapToShippingRequest(order);
             var shippingResponse = orderServiceCommunication.arrangeShipping(shippingRequest);
 
-            if (shippingResponse != null && Boolean.TRUE.equals(shippingResponse.getSuccess())) {
+            if (shippingResponse != null && Boolean.TRUE.equals(shippingResponse.success())) {
                 sagaStateService.updateShippingStateAndProceed(order,
-                        shippingResponse.getTrackingNumber(),
+                        shippingResponse.trackingNumber(),
                         SagaStep.COMPLETED);
 
                 // Complete the order
                 completeOrder(orderId);
             } else {
-                handleStepFailure(order, shippingResponse != null ? shippingResponse.getRetryable() : false,
+                handleStepFailure(order, shippingResponse != null ? shippingResponse.retryable() : false,
                         new ShippingArrangementException("Shipping arrangement failed: " +
-                                (shippingResponse != null ? shippingResponse.getMessage() : GENERAL_ERROR_MESSAGE)));
+                                (shippingResponse != null ? shippingResponse.message() : GENERAL_ERROR_MESSAGE)));
             }
         } catch (Exception e) {
             handleStepFailure(order, false, e);
@@ -159,6 +159,7 @@ public class SagaStepExecutor {
         log.info("Completing order: {}", order.getOrderNumber());
 
         try {
+            orderServiceCommunication.confirmInventoryReservation(order.getOrderNumber());
             sagaStateService.completeOrderAndSaga(order);
             log.info("Order completed successfully: {}", order.getOrderNumber());
         } catch (Exception e) {

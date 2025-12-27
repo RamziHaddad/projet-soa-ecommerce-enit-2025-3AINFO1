@@ -20,55 +20,52 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class RequestMapperService {
 
-    /**
-     * Maps an Order to an InventoryRequest.
-     *
-     * @param order The order to map
-     * @return The inventory request DTO
-     */
-    public InventoryRequest mapToInventoryRequest(Order order) {
-        log.debug("Mapping order {} to inventory request", order.getOrderNumber());
+        /**
+         * Maps an Order to an InventoryRequest.
+         *
+         * @param order The order to map
+         * @return The inventory request DTO
+         */
+        public InventoryRequest mapToInventoryRequest(Order order) {
+                log.debug("Mapping order {} to inventory request", order.getOrderNumber());
 
-        return InventoryRequest.builder()
-                .orderNumber(order.getOrderNumber())
-                .items(order.getItems().stream()
-                        .map(item -> InventoryItemRequest.builder()
-                                .productId(item.getProductId())
-                                .quantity(item.getQuantity())
-                                .build())
-                        .toList())
-                .build();
-    }
+                return new InventoryRequest(
+                                order.getOrderNumber(),
+                                order.getItems().stream()
+                                                .map(item -> new InventoryItemRequest(
+                                                                item.getProductId(),
+                                                                item.getQuantity()))
+                                                .toList());
+        }
 
-    /**
-     * Maps an Order to a PaymentRequest.
-     *
-     * @param order The order to map
-     * @return The payment request DTO
-     */
-    public PaymentRequest mapToPaymentRequest(Order order) {
-        log.debug("Mapping order {} to payment request", order.getOrderNumber());
+        /**
+         * Maps an Order to a PaymentRequest.
+         *
+         * @param order The order to map
+         * @return The payment request DTO
+         */
+        public PaymentRequest mapToPaymentRequest(Order order) {
+                log.debug("Mapping order {} to payment request", order.getOrderNumber());
 
-        return PaymentRequest.builder()
-                .orderNumber(order.getOrderNumber())
-                .customerId(order.getCustomerId())
-                .amount(order.getTotalAmount())
-                .build();
-    }
+                return new PaymentRequest(
+                                order.getOrderNumber(),
+                                order.getCustomerId(),
+                                order.getTotalAmount(),
+                                null);
+        }
 
-    /**
-     * Maps an Order to a ShippingRequest.
-     *
-     * @param order The order to map
-     * @return The shipping request DTO
-     */
-    public ShippingRequest mapToShippingRequest(Order order) {
-        log.debug("Mapping order {} to shipping request", order.getOrderNumber());
+        /**
+         * Maps an Order to a ShippingRequest.
+         *
+         * @param order The order to map
+         * @return The shipping request DTO
+         */
+        public ShippingRequest mapToShippingRequest(Order order) {
+                log.debug("Mapping order {} to shipping request", order.getOrderNumber());
 
-        return ShippingRequest.builder()
-                .orderNumber(order.getOrderNumber())
-                .customerId(order.getCustomerId())
-                .shippingAddress(order.getShippingAddress())
-                .build();
-    }
+                return new ShippingRequest(
+                                order.getOrderNumber(),
+                                order.getCustomerId(),
+                                order.getShippingAddress());
+        }
 }

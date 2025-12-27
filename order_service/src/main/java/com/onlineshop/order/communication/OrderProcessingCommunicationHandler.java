@@ -60,4 +60,6 @@ public interface OrderProcessingCommunicationHandler {
      * @return Success status
      */
     ShippingResponse cancelShipping(String trackingNumber);
+
+    void confirmInventoryReservation(String orderNumber);
 }

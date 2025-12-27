@@ -89,7 +89,7 @@ services:
     image: wiremock/wiremock:latest
     container_name: wiremock-payment
     ports:
-      - "8082:8080"
+      - "8084:8080"
     volumes:
       - ./wiremock/payment/mappings:/home/wiremock/mappings
     command: --port 8080 --verbose

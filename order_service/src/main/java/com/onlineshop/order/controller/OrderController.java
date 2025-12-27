@@ -32,9 +32,9 @@ public class OrderController {
     
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest request) {
-        log.info("Received order creation request for customer: {}", request.getCustomerId());
+        log.info("Received order creation request for customer: {}", request.customerId());
         OrderResponse orderResponse = orderService.createOrder(request);
-        log.info("Order created successfully with number: {}", orderResponse.getOrderNumber());
+        log.info("Order created successfully with number: {}", orderResponse.orderNumber());
         return ResponseEntity.ok(orderResponse);
     }
     
@@ -42,7 +42,7 @@ public class OrderController {
     public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long orderId) {
         log.info("Retrieving order with ID: {}", orderId);
         OrderResponse orderResponse = orderService.getOrderById(orderId);
-        log.info("Order retrieved successfully: {}", orderResponse.getOrderNumber());
+        log.info("Order retrieved successfully: {}", orderResponse.orderNumber());
         return ResponseEntity.ok(orderResponse);
     }
     
@@ -50,7 +50,7 @@ public class OrderController {
     public ResponseEntity<OrderResponse> getOrderByNumber(@PathVariable String orderNumber) {
         log.info("Retrieving order with number: {}", orderNumber);
         OrderResponse orderResponse = orderService.getOrderByNumber(orderNumber);
-        log.info("Order retrieved successfully: {}", orderResponse.getOrderNumber());
+        log.info("Order retrieved successfully: {}", orderResponse.orderNumber());
         return ResponseEntity.ok(orderResponse);
     }
     

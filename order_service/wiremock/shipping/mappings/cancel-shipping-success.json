@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "urlPattern": "/api/shipping/cancel/[A-Z0-9\\-]+"
+    "urlPattern": "/api/shipping/cancel/[A-Za-z0-9\\-]+"
   },
   "response": {
     "status": 200,

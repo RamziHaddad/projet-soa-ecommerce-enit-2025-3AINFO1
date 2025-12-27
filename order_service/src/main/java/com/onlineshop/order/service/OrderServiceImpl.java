@@ -37,7 +37,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderResponse createOrder(OrderRequest request) {
-        log.info("Creating order for customer: {}", request.getCustomerId());
+        log.info("Creating order for customer: {}", request.customerId());
 
         Order savedOrder = createOrderInTransaction(request);
         startSagaAsync(savedOrder.getId());
@@ -57,21 +57,21 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = Order.builder()
                 .orderNumber(orderNumber)
-                .customerId(request.getCustomerId())
+                .customerId(request.customerId())
                 .status(OrderStatus.PROCESSING)
-                .shippingAddress(request.getShippingAddress())
+                .shippingAddress(request.shippingAddress())
                 .build();
 
         BigDecimal totalAmount = BigDecimal.ZERO;
-        for (var itemRequest : request.getItems()) {
-            BigDecimal itemSubtotal = itemRequest.getUnitPrice()
-                    .multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
+        for (var itemRequest : request.items()) {
+            BigDecimal itemSubtotal = itemRequest.unitPrice()
+                    .multiply(BigDecimal.valueOf(itemRequest.quantity()));
 
             OrderItem item = OrderItem.builder()
                     .order(order)
-                    .productId(itemRequest.getProductId())
-                    .quantity(itemRequest.getQuantity())
-                    .unitPrice(itemRequest.getUnitPrice())
+                    .productId(itemRequest.productId())
+                    .quantity(itemRequest.quantity())
+                    .unitPrice(itemRequest.unitPrice())
                     .subtotal(itemSubtotal)
                     .build();
 
@@ -186,24 +186,25 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderResponse mapToResponse(Order order) {
-        return OrderResponse.builder()
-                .id(order.getId())
-                .orderNumber(order.getOrderNumber())
-                .customerId(order.getCustomerId())
-                .status(order.getStatus())
-                .totalAmount(order.getTotalAmount())
-                .shippingAddress(order.getShippingAddress())
-                .createdAt(order.getCreatedAt())
-                .updatedAt(order.getUpdatedAt())
-                .items(order.getItems().stream()
-                        .map(item -> com.onlineshop.order.dto.response.OrderItemResponse.builder()
-                                .id(item.getId())
-                                .productId(item.getProductId())
-                                .quantity(item.getQuantity())
-                                .unitPrice(item.getUnitPrice())
-                                .subtotal(item.getSubtotal())
-                                .build())
-                        .collect(Collectors.toList()))
-                .build();
+        var items = order.getItems().stream()
+                .map(item -> new com.onlineshop.order.dto.response.OrderItemResponse(
+                        item.getId(),
+                        item.getProductId(),
+                        null,
+                        item.getQuantity(),
+                        item.getUnitPrice(),
+                        item.getSubtotal()))
+                .collect(Collectors.toList());
+
+        return new OrderResponse(
+                order.getId(),
+                order.getOrderNumber(),
+                order.getCustomerId(),
+                order.getStatus(),
+                order.getTotalAmount(),
+                order.getShippingAddress(),
+                items,
+                order.getCreatedAt(),
+                order.getUpdatedAt());
     }
 }

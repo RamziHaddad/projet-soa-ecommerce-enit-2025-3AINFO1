@@ -1,7 +1,7 @@
-@inventory = http://localhost:8081
-@payment = http://localhost:8082
+@inventory = http://localhost:8082
+@payment = http://localhost:8084
 @shipping = http://localhost:8083
-@orders = http://localhost:8080
+@orders = http://localhost:9000
 
 ### Inventory — Reserve (success)
 POST {{inventory}}/api/inventory/reserve
@@ -51,6 +51,14 @@ Content-Type: application/json
 
 # Expected: 200 JSON with `success: true`, `trackingNumber`, `timestamp`
 
+### Shipping — cancel (success)
+POST {{shipping}}/api/shipping/cancel/TRACK123
+Content-Type: application/json
+
+###
+POST  http://localhost:8083/api/shipping/cancel/fuckyou
+Content-Type : application/json
+
 ### OrderService — Create Order
 POST {{orders}}/api/orders
 Content-Type: application/json
@@ -89,3 +97,4 @@ DELETE {{orders}}/api/orders/1
 # - If mappings changed, restart the WireMock containers:
 #   cd order_service && docker-compose restart wiremock-inventory wiremock-payment wiremock-shipping
 # - Alternative: use the curl commands shown in the mapping comments if you prefer CLI.
+
