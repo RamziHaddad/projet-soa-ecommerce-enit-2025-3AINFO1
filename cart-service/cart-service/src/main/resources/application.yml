@@ -16,4 +16,4 @@ server:
 
 # Feign / Order service URL
 orderservice:
-  url: http://localhost:8081   # <-- put the actual port of your Order service here
+  url: http://localhost:8080   # <-- put the actual port of your Order service here
