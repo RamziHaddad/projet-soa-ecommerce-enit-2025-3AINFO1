@@ -1,0 +1,209 @@
+{
+  "info": {
+    "name": "Feedback Service API",
+    "description": "Complete API collection for Feedback Microservice",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "your-jwt-token-here",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Submit Feedback (Rating + Comment)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product_id\": 123,\n  \"rating\": 5,\n  \"comment\": \"Excellent product! Fast shipping and great quality.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/feedback",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "feedback"]
+        }
+      }
+    },
+    {
+      "name": "Submit Rating Only",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product_id\": 456,\n  \"rating\": 4\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/feedback",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "feedback"]
+        }
+      }
+    },
+    {
+      "name": "Submit Comment Only",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product_id\": 789,\n  \"comment\": \"Good product but delivery was slow.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/feedback",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "feedback"]
+        }
+      }
+    },
+    {
+      "name": "Update Feedback",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Updated review - good but not perfect\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/feedback/1",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "feedback", "1"]
+        }
+      }
+    },
+    {
+      "name": "Delete Feedback",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/feedback/1",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "feedback", "1"]
+        }
+      }
+    },
+    {
+      "name": "Get Product Feedback (Paginated)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/feedback/products/123?page=1&size=20",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "feedback", "products", "123"],
+          "query": [
+            {"key": "page", "value": "1"},
+            {"key": "size", "value": "20"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Rating Summary (Cached)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/feedback/products/123/summary",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "feedback", "products", "123", "summary"]
+        }
+      }
+    },
+    {
+      "name": "Get My Feedback",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/feedback/users/me?page=1&size=20",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "feedback", "users", "me"],
+          "query": [
+            {"key": "page", "value": "1"},
+            {"key": "size", "value": "20"}
+          ]
+        }
+      }
+    }
+  ]
+}
