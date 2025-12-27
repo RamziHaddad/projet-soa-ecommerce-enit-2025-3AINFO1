@@ -10,5 +10,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
 server:
   port: 8082
+
+# Feign / Order service URL
+orderservice:
+  url: http://localhost:8081   # <-- put the actual port of your Order service here

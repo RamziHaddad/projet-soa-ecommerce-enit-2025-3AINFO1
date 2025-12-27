@@ -1,27 +1,23 @@
 package com.example.cart.service;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.cart.client.OrderClient;
+import com.example.cart.dto.OrderRequest;
+import com.example.cart.dto.OrderResponse;
 import com.example.cart.entity.Cart;
 import com.example.cart.entity.CartItem;
-import com.example.cart.entity.OrdersOutbox;
 import com.example.cart.repository.CartItemRepository;
 import com.example.cart.repository.CartRepository;
 import com.example.cart.repository.OrdersOutboxRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 @Service
 public class CartService {
 
@@ -29,12 +25,17 @@ public class CartService {
 	private final CartItemRepository cartItemRepository;
 	private final OrdersOutboxRepository outboxRepository;
 	private final ObjectMapper objectMapper = new ObjectMapper();
+    private final OrderClient orderClient;
 
-	public CartService(CartRepository cartRepository, CartItemRepository cartItemRepository, OrdersOutboxRepository outboxRepository) {
-		this.cartRepository = cartRepository;
-		this.cartItemRepository = cartItemRepository;
-		this.outboxRepository = outboxRepository;
-	}
+    public CartService(CartRepository cartRepository,
+                   CartItemRepository cartItemRepository,
+                   OrdersOutboxRepository outboxRepository,
+                   OrderClient orderClient) {
+    this.cartRepository = cartRepository;
+    this.cartItemRepository = cartItemRepository;
+    this.outboxRepository = outboxRepository;
+    this.orderClient = orderClient;
+}
 
 	@Transactional
 	public Cart createCart(Long customerId) {
@@ -101,44 +102,34 @@ public class CartService {
 	}
 
 	@Transactional
-	public Long checkout(Long cartId) {
-		Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new NoSuchElementException("Cart not found"));
-		if (cart.getItems() == null || cart.getItems().isEmpty()) throw new IllegalStateException("Cart is empty");
+    public OrderResponse checkout(Long cartId) {
+        Cart cart = cartRepository.findById(cartId)
+            .orElseThrow(() -> new NoSuchElementException("Cart not found"));
 
-		Long orderId = Math.abs(new Random().nextLong());
+       if (cart.getItems() == null || cart.getItems().isEmpty())
+        throw new IllegalStateException("Cart is empty");
 
-		// Build lightweight payload
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("orderId", orderId.toString());
-		payload.put("cartId", cart.getId().toString());
-		payload.put("customerId", cart.getCustomerId() == null ? null : cart.getCustomerId().toString());
-		List<Map<String, Object>> items = new ArrayList<>();
-		for (CartItem ci : cartItemRepository.findByCartId(cartId)) {
-			Map<String, Object> it = new HashMap<>();
-			it.put("productId", ci.getProductId().toString());
-			it.put("name", ci.getName());
-			it.put("unitPrice", ci.getUnitPrice());
-			it.put("quantity", ci.getQuantity());
-			items.add(it);
-		}
-		payload.put("items", items);
-		payload.put("totalAmount", cart.getTotalAmount());
-		payload.put("createdAt", OffsetDateTime.now().toString());
+    // Build OrderRequest
+       OrderRequest orderReq = new OrderRequest();
+    orderReq.customerId = cart.getCustomerId();
+    orderReq.shippingAddress = "Default Address"; // could come from user input
 
-		try {
-			String json = objectMapper.writeValueAsString(payload);
-			OrdersOutbox out = new OrdersOutbox();
-			out.setAggregateType("order");
-			out.setAggregateId(orderId);
-			out.setEventType("OrderCreated");
-			out.setPayload(json);
-			outboxRepository.save(out);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to serialize outbox payload", e);
-		}
+    for (CartItem ci : cartItemRepository.findByCartId(cartId)) {
+        OrderRequest.OrderItem item = new OrderRequest.OrderItem();
+        item.productId = ci.getProductId();
+        item.quantity = ci.getQuantity();
+        item.unitPrice = ci.getUnitPrice();
+        orderReq.items.add(item);
+    }
 
-		cart.setStatus("CHECKED_OUT");
-		cartRepository.save(cart);
-		return orderId;
-	}
+    // Call Order Service
+    OrderResponse response = (OrderResponse) orderClient.createOrder(orderReq);
+
+    // Update cart status
+    cart.setStatus("CHECKED_OUT");
+    cartRepository.save(cart);
+
+    return response;
+}
+
 }

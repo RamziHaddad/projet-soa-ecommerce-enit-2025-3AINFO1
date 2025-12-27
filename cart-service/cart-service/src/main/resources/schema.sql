@@ -4,8 +4,7 @@ CREATE TABLE carts (
     customer_id BIGINT,
     status VARCHAR(255) NOT NULL DEFAULT 'OPEN',
     currency VARCHAR(3) NOT NULL DEFAULT 'TND',
-    total_amount DECIM
-    AL(19,2) NOT NULL DEFAULT 0.00,
+    total_amount DECIMAL (19,2) NOT NULL DEFAULT 0.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 

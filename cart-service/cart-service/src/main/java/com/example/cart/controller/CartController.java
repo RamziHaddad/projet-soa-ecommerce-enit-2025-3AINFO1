@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.cart.dto.OrderResponse;
 import com.example.cart.entity.Cart;
 import com.example.cart.service.CartService;
 
@@ -61,8 +62,9 @@ public class CartController {
 	}
 
 	@PostMapping("/{id}/checkout")
-	public ResponseEntity<Map<String, String>> checkout(@PathVariable("id") Long id) {
-		Long orderId = cartService.checkout(id);
-		return ResponseEntity.ok(Map.of("orderId", orderId.toString()));
-	}
+    public ResponseEntity<OrderResponse> checkout(@PathVariable("id") Long id) {
+       OrderResponse order = (OrderResponse) cartService.checkout(id);
+       return ResponseEntity.ok(order);
+}
+
 }
