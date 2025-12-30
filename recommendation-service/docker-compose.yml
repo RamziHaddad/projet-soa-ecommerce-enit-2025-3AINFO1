@@ -1,0 +1,85 @@
+version: '3.8'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - 9093:9092
+
+  redis:
+    image: redis:7
+    ports:
+      - 6380:6379
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=rec
+      - POSTGRES_PASSWORD=recpass
+      - POSTGRES_DB=recommendation
+    ports:
+      - 5434:5432
+
+  milvus:
+    image: milvusdb/milvus:v2.4.11
+    container_name: milvus-standalone
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_USE_EMBED: "true"
+      MINIO_USE_EMBED: "true"
+      COMMON_STORAGETYPE: "local"
+    ports:
+      - 19530:19530 # gRPC
+      - 9091:9091   # REST
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "19530"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  # MinIO for Model Registry
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - 9000:9000
+      - 9001:9001
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  recommendation:
+    build:
+      context: .
+      dockerfile: Dockerfile-java
+    ports:
+      - 8090:8080
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xms512m -Xmx1024m
+    depends_on:
+      - kafka
+      - redis
+      - postgres
+      - minio
+
+volumes:
+  minio_data:

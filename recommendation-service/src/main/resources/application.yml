@@ -1,0 +1,90 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: recommendation-service
+  kafka:
+    listener:
+      auto-startup: true
+    consumer:
+      group-id: recommendation-service
+      bootstrap-servers: kafka:9092
+      auto-offset-reset: earliest
+      max-poll-records: 100
+    topics:
+      order-events: order.events
+      catalog-events: catalog.events
+      feedback-events: feedback.events
+      inventory-events: inventory.events
+      user-events: user.events
+  redis:
+    host: redis
+    port: 6379
+  datasource:
+    url: jdbc:postgresql://postgres:5432/recommendation
+    username: rec
+    password: recpass
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+otel:
+  enabled: false
+
+ann:
+  provider: milvus # or stub
+  
+milvus:
+  host: milvus
+  port: 19530
+
+minio:
+  endpoint: http://minio:9000
+  accessKey: minioadmin
+  secretKey: minioadmin
+
+# Integration avec les services existants
+integration:
+  catalog-service:
+    url: http://catalog-service:8081
+    enabled: true
+  order-service:
+    url: http://order-service:8080
+    enabled: true
+  feedback-service:
+    url: http://feedback-service:8082
+    enabled: true
+  inventory-service:
+    url: http://inventory-service:8084
+    enabled: true
+  user-service:
+    url: http://user-service:8083
+    enabled: true
+
+# ML Model Configuration
+ml:
+  word2vec:
+    embedding-size: 128
+    window-size: 5
+    min-count: 2
+    epochs: 100
+  gradient-boosting:
+    num-trees: 50
+    max-depth: 6
+    learning-rate: 0.1
+  training:
+    auto-train: true
+    schedule-cron: "0 0 2 * * *" # 2h du matin
