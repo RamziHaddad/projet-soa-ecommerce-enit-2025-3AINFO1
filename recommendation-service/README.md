@@ -329,28 +329,29 @@ Voici comment un événement `user.events` est traité pour enrichir le système
 ```mermaid
 sequenceDiagram
     autonumber
+
     participant Kafka
     participant Listener as UserEventsListener
     participant FSS as FeatureStoreService
-    participant UBR as UserBehaviorRepository (Postgres)
-    participant TDS as TrendingDetectorService (Redis)
+    participant UBR as UserBehaviorRepository
+    participant TDS as TrendingDetectorService
 
-    Kafka->>+Listener: New Message on 'user.events' (e.g., VIEW_PRODUCT)
-    
-    Note over Listener: Parsing & Validation
-    Listener->>Listener: Deserialize JSON to UserEventDTO
+    Kafka->>Listener: New message on user.events (VIEW_PRODUCT)
+
+    Note over Listener: Parsing & validation
+    Listener->>Listener: Deserialize JSON → UserEventDTO
 
     Note over Listener,TDS: Mise à jour des tendances
     Listener->>TDS: recordEvent(productId, eventType)
     TDS-->>Listener: OK
 
-    Note over Listener,UBR: Persistance pour l'entraînement futur
+    Note over Listener,UBR: Persistance pour entraînement futur
     Listener->>UBR: saveUserEvent(event)
     UBR-->>Listener: OK
-    
-    Note over Listener,FSS: Mise à jour du cache si nécessaire
+
+    Note over Listener,FSS: Mise à jour du cache utilisateur
     Listener->>FSS: updateUserFeatureCache(userId, event)
-    FSS-->>-Listener: OK
+    FSS-->>Listener: OK
 ```
 
 ## MLOps & Cycle de Vie des Modèles
@@ -363,27 +364,41 @@ Ce processus est déclenché par un `Scheduler` (par exemple, tous les jours à 
 
 ```mermaid
 flowchart TD
-    Start([Start Scheduled Training]) --> GetData[1. Collecter les Données<br/>(UserBehaviorRepository)]
-    
-    GetData --> TrainW2V[2. Entraîner le modèle Word2Vec<br/>(Génère les embeddings)]
-    TrainW2V --> SaveW2V[3. Sauvegarder le modèle Word2Vec<br/>(ModelRegistry - MinIO)]
-    
-    SaveW2V --> PrepareFeatures[4. Préparer les Données d'Entraînement<br/>(FeatureEngineer)]
-    PrepareFeatures --> TrainXGB[5. Entraîner le modèle de Ranking XGBoost]
-    
-    TrainXGB --> Evaluate[6. Évaluer le Modèle<br/>(Calculer la précision, NDCG, etc.)]
-    
-    Evaluate --> CheckPerf{Performance > Seuil ?}
-    
-    CheckPerf -->|Oui| RegisterXGB[7. Enregistrer le nouveau modèle XGBoost<br/>(ModelRegistry - MinIO)]
-    RegisterXGB --> Notify[8. Notifier le ModelServingEngine<br/>(ou redémarrage progressif)]
-    Notify --> End([Training Terminé ✓])
-    
-    CheckPerf -->|Non| Discard([Annuler - Garder l'ancien modèle])
-    
-    style Start fill:#2196F3,color:#fff
-    style End fill:#4CAF50,color:#fff
-    style Discard fill:#f44336,color:#fff
+    Start([Start scheduled training])
+
+    GetData["1. Collecter les données\nUserBehaviorRepository"]
+    TrainW2V["2. Entraîner Word2Vec\nEmbeddings utilisateurs"]
+    SaveW2V["3. Sauvegarder Word2Vec\nModel Registry (MinIO)"]
+
+    PrepareFeatures["4. Préparer les features"]
+    TrainXGB["5. Entraîner XGBoost Ranking"]
+
+    Evaluate["6. Évaluer le modèle\nPrecision / NDCG"]
+    CheckPerf{Performance > seuil ?}
+
+    RegisterXGB["7. Enregistrer XGBoost\nModel Registry"]
+    Notify["8. Notifier Model Serving"]
+
+    End([Training terminé])
+    Discard([Annuler\nConserver ancien modèle])
+
+    Start --> GetData
+    GetData --> TrainW2V
+    TrainW2V --> SaveW2V
+    SaveW2V --> PrepareFeatures
+    PrepareFeatures --> TrainXGB
+    TrainXGB --> Evaluate
+    Evaluate --> CheckPerf
+
+    CheckPerf -->|Oui| RegisterXGB
+    RegisterXGB --> Notify
+    Notify --> End
+
+    CheckPerf -->|Non| Discard
+
+    style Start fill:#2196F3,color:#ffffff
+    style End fill:#4CAF50,color:#ffffff
+    style Discard fill:#f44336,color:#ffffff
 ```
 
 ## Monitoring & Observabilité
