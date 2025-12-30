@@ -326,6 +326,7 @@ Ce microservice est au cœur de la plateforme et ne pourrait fonctionner sans le
 
 Voici comment un événement `user.events` est traité pour enrichir le système.
 
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -349,6 +350,7 @@ sequenceDiagram
     FSS-->>-Listener: OK
 ```
 
+
 ## MLOps & Cycle de Vie des Modèles
 
 Une section dédiée au cycle de vie des modèles ML, de l'entraînement au déploiement.
@@ -356,6 +358,7 @@ Une section dédiée au cycle de vie des modèles ML, de l'entraînement au dép
 ### Flux d'Entraînement Automatisé des Modèles
 
 Ce processus est déclenché par un `Scheduler` (par exemple, tous les jours à 3h du matin).
+
 
 ```mermaid
 flowchart TD
@@ -374,6 +377,8 @@ flowchart TD
     style End fill:#4CAF50,color:#fff
     style Discard fill:#f44336,color:#fff
 ```
+
+
 ## Monitoring & Observabilité
 
 - **Health Checks**: `GET /actuator/health` fournit l'état de santé du service.
