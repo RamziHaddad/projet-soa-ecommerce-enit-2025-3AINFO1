@@ -47,6 +47,8 @@ graph TD
         UserEvents[user.events]
         OrderEvents[order.events]
         CatalogEvents[catalog.events]
+        FeedbackEvents[feedback.events]
+        InventoryEvents[inventory.events]
     end
 
     subgraph "Recommendation API"
