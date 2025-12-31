@@ -321,6 +321,7 @@ Ce microservice est au cœur de la plateforme et ne pourrait fonctionner sans le
 | **Order Service** | `order.events` | Analyse les produits achetés pour l'entraînement des modèles (Word2Vec) et met à jour les features de budget utilisateur. |
 | **Catalog Service**| `catalog.events` | Met à jour les informations produits (prix, catégorie) et déclenche l'indexation de nouveaux produits dans Milvus. |
 | **Inventory Service**| `inventory.events`| Met à jour la disponibilité des produits en temps réel pour filtrer les articles en rupture de stock AVANT le classement. |
+| **Feedback Service** | `feedback.events` | Met à jour les feedbacks utilisateurs (notes, likes, avis) pour améliorer l'entraînement et la personnalisation des recommandations. |
 
 ### Flux de Traitement d'Événement en Temps Réel
 
